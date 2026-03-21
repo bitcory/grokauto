@@ -1,0 +1,94 @@
+{
+  "header": {
+    "title": "Grok 자동화",
+    "version": "v1.0.0",
+    "description": "Grok AI 자동화 도구"
+  },
+  "tabs": {
+    "control": "컨트롤",
+    "settings": "설정"
+  },
+  "mode": {
+    "label": "생성 모드",
+    "image-to-image": "이미지→이미지",
+    "text-to-image": "텍스트→이미지",
+    "frame-to-video": "이미지→비디오",
+    "text-to-video": "텍스트→비디오",
+    "remix-video": "리믹스→비디오"
+  },
+  "control": {
+    "concurrent": "동시 프롬프트 수",
+    "delay": "랜덤 지연 (초)",
+    "delayMin": "최소",
+    "delayMax": "최대"
+  },
+  "prompt": {
+    "label": "프롬프트",
+    "placeholder": "프롬프트를 입력하세요.\n빈 줄로 구분하면 여러 프롬프트로 나뉩니다.",
+    "count": "{{count}}개 프롬프트",
+    "hint": "각 프롬프트를 빈 줄로 구분하세요.",
+    "loadTxt": ".txt 파일 업로드",
+    "perPromptMode": "프롬프트별 이미지 모드",
+    "modeNew": "새로 만들기",
+    "modeReuse": "재사용",
+    "modeNewDesc": "새로 만들기: 각 프롬프트는 자체 업로드된 이미지를 사용합니다.",
+    "modeReuseDesc": "재사용: 이전 프롬프트에서 생성된 마지막 이미지를 입력으로 사용합니다.",
+    "chars": "{{count}} characters"
+  },
+  "image": {
+    "upload": "이미지 업로드",
+    "dragDrop": "이미지를 드래그하거나 클릭하여 업로드",
+    "remove": "제거",
+    "options": "이미지 옵션",
+    "resizeToFit": "크기 자동 맞춤",
+    "autoCharacter": "캐릭터 이미지 자동 추가"
+  },
+  "output": {
+    "label": "출력 설정",
+    "perPrompt": "프롬프트당 출력 수",
+    "folder": "저장 폴더",
+    "autoRename": "파일명 자동 변경"
+  },
+  "queue": {
+    "label": "프롬프트 대기열",
+    "active": "활성: {{count}}",
+    "completed": "완료: {{count}}",
+    "failed": "실패: {{count}}",
+    "pending": "대기",
+    "running": "진행중",
+    "completedStatus": "완료",
+    "failedStatus": "실패",
+    "empty": "대기열이 비어있습니다"
+  },
+  "notGrok": {
+    "title": "Grok 페이지가 아닙니다",
+    "description": "Grok Automation 도구는 grok.com의 이매진 페이지에서만 작동합니다.",
+    "goToGrok": "Grok으로 이동"
+  },
+  "actions": {
+    "clear": "지우기",
+    "start": "실행",
+    "stop": "중지"
+  },
+  "settings": {
+    "video": {
+      "label": "비디오 설정",
+      "aspectRatio": "화면 비율",
+      "duration": "지속 시간 (초)",
+      "motionStyle": "모션 스타일",
+      "normal": "보통",
+      "slow": "느림",
+      "fast": "빠름"
+    },
+    "image": {
+      "label": "이미지 설정",
+      "model": "이미지 모델",
+      "count": "생성 수량"
+    },
+    "advanced": {
+      "label": "고급 설정",
+      "retryCount": "재시도 횟수",
+      "timeout": "타임아웃 (초)"
+    }
+  }
+}

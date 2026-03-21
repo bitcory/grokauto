@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Grok Automation"
+  },
+  "extDescription": {
+    "message": "Batch automation for image/video generation on grok.com"
+  }
+}

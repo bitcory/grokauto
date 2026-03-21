@@ -1,0 +1,94 @@
+{
+  "header": {
+    "title": "Grok Automation",
+    "version": "v1.0.0",
+    "description": "Grok AI Automation Tool"
+  },
+  "tabs": {
+    "control": "Control",
+    "settings": "Settings"
+  },
+  "mode": {
+    "label": "Generation Mode",
+    "image-to-image": "Image→Image",
+    "text-to-image": "Text→Image",
+    "frame-to-video": "Image→Video",
+    "text-to-video": "Text→Video",
+    "remix-video": "Remix→Video"
+  },
+  "control": {
+    "concurrent": "Concurrent Prompts",
+    "delay": "Random Delay (sec)",
+    "delayMin": "Min",
+    "delayMax": "Max"
+  },
+  "prompt": {
+    "label": "Prompts",
+    "placeholder": "Enter your prompts.\nSeparate multiple prompts with blank lines.",
+    "count": "{{count}} prompt(s)",
+    "hint": "Separate each prompt with a blank line.",
+    "loadTxt": "Upload .txt",
+    "perPromptMode": "Per-prompt image mode",
+    "modeNew": "Create new",
+    "modeReuse": "Reuse",
+    "modeNewDesc": "Create new: Each prompt uses its own uploaded image.",
+    "modeReuseDesc": "Reuse: Uses the last generated image from the previous prompt as input.",
+    "chars": "{{count}} characters"
+  },
+  "image": {
+    "upload": "Image Upload",
+    "dragDrop": "Drag & drop images or click to upload",
+    "remove": "Remove",
+    "options": "Image Options",
+    "resizeToFit": "Resize to fit",
+    "autoCharacter": "Auto-add character image"
+  },
+  "output": {
+    "label": "Output Settings",
+    "perPrompt": "Outputs per prompt",
+    "folder": "Save folder",
+    "autoRename": "Auto-rename files"
+  },
+  "queue": {
+    "label": "Prompt Queue",
+    "active": "Active: {{count}}",
+    "completed": "Completed: {{count}}",
+    "failed": "Failed: {{count}}",
+    "pending": "Pending",
+    "running": "Running",
+    "completedStatus": "Done",
+    "failedStatus": "Failed",
+    "empty": "Queue is empty"
+  },
+  "notGrok": {
+    "title": "Not a Grok Page",
+    "description": "Grok Automation only works on the grok.com imagine page.",
+    "goToGrok": "Go to Grok"
+  },
+  "actions": {
+    "clear": "Clear",
+    "start": "Start",
+    "stop": "Stop"
+  },
+  "settings": {
+    "video": {
+      "label": "Video Settings",
+      "aspectRatio": "Aspect Ratio",
+      "duration": "Duration (sec)",
+      "motionStyle": "Motion Style",
+      "normal": "Normal",
+      "slow": "Slow",
+      "fast": "Fast"
+    },
+    "image": {
+      "label": "Image Settings",
+      "model": "Image Model",
+      "count": "Count"
+    },
+    "advanced": {
+      "label": "Advanced Settings",
+      "retryCount": "Retry Count",
+      "timeout": "Timeout (sec)"
+    }
+  }
+}

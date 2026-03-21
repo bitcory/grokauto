@@ -1,0 +1,176 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #FFF9EB;
+  --foreground: #1C1C1C;
+  --primary: #03C75A;
+  --primary-foreground: #FFFFFF;
+  --secondary: #FFD43B;
+  --secondary-foreground: #1C1C1C;
+  --accent: #FF6B6B;
+  --accent-foreground: #FFFFFF;
+  --muted: #F5F0E1;
+  --muted-foreground: #6B6B6B;
+  --content2: #F0EBD8;
+  --danger: #FF4757;
+  --warning: #FFA502;
+  --success: #03C75A;
+  --border: #1C1C1C;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', 'Noto Sans KR', system-ui, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Neo-Brutalism Card ─── */
+@layer components {
+  .neo-card {
+    @apply bg-white border-3 border-foreground rounded-neo shadow-neo-sm;
+  }
+
+  .neo-card-hover {
+    @apply neo-card transition-all duration-150;
+  }
+  .neo-card-hover:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px 0px var(--foreground);
+  }
+  .neo-card-hover:active {
+    transform: translate(1px, 1px);
+    box-shadow: none;
+  }
+
+  /* ─── Memphis Input ─── */
+  .memphis-input {
+    @apply w-full bg-white border-3 border-foreground rounded-neo-sm px-3 py-2
+           text-sm text-foreground placeholder:text-muted-foreground
+           outline-none transition-shadow duration-150;
+  }
+  .memphis-input:focus {
+    box-shadow: 3px 3px 0px 0px var(--primary);
+  }
+
+  /* ─── Memphis Select ─── */
+  .memphis-select {
+    @apply bg-white border-3 border-foreground rounded-neo-sm px-2 py-1.5
+           text-xs text-foreground outline-none transition-shadow duration-150
+           cursor-pointer appearance-none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231C1C1C' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 28px;
+  }
+  .memphis-select:focus {
+    box-shadow: 3px 3px 0px 0px var(--primary);
+  }
+
+  /* ─── Memphis Badge ─── */
+  .memphis-badge {
+    @apply inline-flex items-center px-2 py-0.5 text-[10px] font-bold
+           uppercase tracking-wider border-2 border-foreground rounded-full;
+  }
+
+  /* ─── Neo Button ─── */
+  .neo-btn {
+    @apply inline-flex items-center justify-center font-bold text-xs
+           border-3 border-foreground rounded-neo-sm shadow-neo-sm
+           transition-all duration-150 cursor-pointer;
+  }
+  .neo-btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px 0px var(--foreground);
+  }
+  .neo-btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: none;
+  }
+  .neo-btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    transform: none;
+    box-shadow: 2px 2px 0px 0px var(--foreground);
+  }
+
+  /* ─── Glass Card (subtle variant) ─── */
+  .glass-card {
+    @apply bg-white/60 backdrop-blur-sm border-2 border-foreground/20 rounded-neo;
+  }
+}
+
+/* ─── Card Enter Animation (stagger) ─── */
+.card-stagger > * {
+  opacity: 0;
+  animation: card-enter 0.3s ease-out forwards;
+}
+.card-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.card-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.card-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.card-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.card-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.card-stagger > *:nth-child(6) { animation-delay: 250ms; }
+.card-stagger > *:nth-child(7) { animation-delay: 300ms; }
+.card-stagger > *:nth-child(8) { animation-delay: 350ms; }
+
+@keyframes card-enter {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Modal Scale In ─── */
+.modal-enter {
+  animation: scale-in 0.2s ease-out forwards;
+}
+
+@keyframes scale-in {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ─── Scrollbar (Light Theme) ─── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 3px;
+  border: 1px solid var(--muted);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--foreground);
+}
+
+/* ─── Focus Visible ─── */
+*:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* ─── Checkbox accent ─── */
+input[type="checkbox"] {
+  accent-color: var(--primary);
+}
