@@ -12,9 +12,11 @@ function countPrompts(text: string): number {
 
 export default function PromptInput() {
   const { t } = useTranslation();
-  const { promptText, setPromptText } = useAppStore();
+  const { promptText, setPromptText, mode } = useAppStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const count = countPrompts(promptText);
+
+  if (mode === 'resize') return null;
 
   const handleTxtUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

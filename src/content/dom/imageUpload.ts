@@ -15,95 +15,95 @@ function dataUrlToFile(dataUrl: string, filename: string): File {
 }
 
 /**
- * Upload image(s) to grok.com's upload input using DataTransfer API
+ * Convert a data URL to a Blob
+ */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)?.[1] ?? 'image/png';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
+
+/**
+ * Upload image(s) to grok.com.
+ * Tries multiple strategies: file input, paste, drag-drop.
  */
 export async function uploadImages(dataUrls: string[]): Promise<boolean> {
   if (dataUrls.length === 0) return true;
 
-  // Find file input
+  // Strategy 1: File input
   let fileInput = document.querySelector(
     SELECTORS.imageUploadInput
   ) as HTMLInputElement | null;
 
-  // If no file input found, try clicking upload area to reveal it
+  // Also try broader file input selectors
   if (!fileInput) {
-    const uploadArea = querySelector([SELECTORS.imageUploadArea]);
-    if (uploadArea) {
-      (uploadArea as HTMLElement).click();
-      await new Promise((r) => setTimeout(r, 500));
-      fileInput = document.querySelector(
-        SELECTORS.imageUploadInput
-      ) as HTMLInputElement | null;
-    }
+    fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
   }
 
-  if (!fileInput) {
-    console.error('[GrokAuto] Image upload input not found');
-    return false;
+  if (fileInput) {
+    console.log('[GrokAuto] Uploading images via file input');
+    const dt = new DataTransfer();
+    dataUrls.forEach((url, i) => {
+      const ext = url.includes('image/png') ? 'png' : 'jpg';
+      const file = dataUrlToFile(url, `upload-${i}.${ext}`);
+      dt.items.add(file);
+    });
+    fileInput.files = dt.files;
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 2000));
+    return true;
   }
 
-  // Create DataTransfer with files
-  const dt = new DataTransfer();
-  dataUrls.forEach((url, i) => {
-    const ext = url.includes('image/png') ? 'png' : 'jpg';
-    const file = dataUrlToFile(url, `upload-${i}.${ext}`);
-    dt.items.add(file);
-  });
+  // Strategy 2: Clipboard paste into the prompt input area
+  const promptInput = querySelector(SELECTORS.promptInput) as HTMLElement | null;
+  if (promptInput) {
+    console.log('[GrokAuto] Uploading images via clipboard paste');
+    promptInput.focus();
+    await new Promise((r) => setTimeout(r, 300));
 
-  // Set files on input
-  fileInput.files = dt.files;
+    const dt = new DataTransfer();
+    dataUrls.forEach((url, i) => {
+      const ext = url.includes('image/png') ? 'png' : 'jpg';
+      const mime = url.includes('image/png') ? 'image/png' : 'image/jpeg';
+      const blob = dataUrlToBlob(url);
+      const file = new File([blob], `upload-${i}.${ext}`, { type: mime });
+      dt.items.add(file);
+    });
 
-  // Dispatch change event
-  fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-
-  // Wait for upload processing
-  await new Promise((r) => setTimeout(r, 1000));
-  return true;
-}
-
-/**
- * Upload images via drag-and-drop simulation
- */
-export async function uploadImagesDragDrop(dataUrls: string[]): Promise<boolean> {
-  if (dataUrls.length === 0) return true;
-
-  const dropTarget =
-    querySelector([SELECTORS.imageUploadArea]) ??
-    querySelector(SELECTORS.promptInput);
-
-  if (!dropTarget) {
-    console.error('[GrokAuto] Drop target not found');
-    return false;
+    const pasteEvent = new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: dt,
+    });
+    promptInput.dispatchEvent(pasteEvent);
+    console.log('[GrokAuto] Dispatched paste event');
+    await new Promise((r) => setTimeout(r, 2000));
+    return true;
   }
 
-  const dt = new DataTransfer();
-  dataUrls.forEach((url, i) => {
-    const ext = url.includes('image/png') ? 'png' : 'jpg';
-    const file = dataUrlToFile(url, `upload-${i}.${ext}`);
-    dt.items.add(file);
-  });
+  // Strategy 3: Drag and drop
+  const dropTarget = querySelector(SELECTORS.promptInput) ?? document.querySelector('form');
+  if (dropTarget) {
+    console.log('[GrokAuto] Uploading images via drag-drop');
+    const dt = new DataTransfer();
+    dataUrls.forEach((url, i) => {
+      const ext = url.includes('image/png') ? 'png' : 'jpg';
+      const file = dataUrlToFile(url, `upload-${i}.${ext}`);
+      dt.items.add(file);
+    });
 
-  // Simulate drag events
-  const dragEnterEvent = new DragEvent('dragenter', {
-    bubbles: true,
-    cancelable: true,
-    dataTransfer: dt,
-  });
-  const dragOverEvent = new DragEvent('dragover', {
-    bubbles: true,
-    cancelable: true,
-    dataTransfer: dt,
-  });
-  const dropEvent = new DragEvent('drop', {
-    bubbles: true,
-    cancelable: true,
-    dataTransfer: dt,
-  });
+    dropTarget.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    dropTarget.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    dropTarget.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    await new Promise((r) => setTimeout(r, 2000));
+    return true;
+  }
 
-  dropTarget.dispatchEvent(dragEnterEvent);
-  dropTarget.dispatchEvent(dragOverEvent);
-  dropTarget.dispatchEvent(dropEvent);
-
-  await new Promise((r) => setTimeout(r, 1000));
-  return true;
+  console.error('[GrokAuto] Image upload: no method available');
+  return false;
 }

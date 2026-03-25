@@ -25,6 +25,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Pending download folder for intercepting grok.com downloads
 let pendingDownloadFolder: string | null = null;
 let pendingDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
+let downloadCounter = 0;
 
 // Intercept downloads from grok.com and redirect to specified folder
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
@@ -35,18 +36,23 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
       clearTimeout(pendingDownloadTimeout);
       pendingDownloadTimeout = null;
     }
-    suggest({ filename: `${folder}/${item.filename}` });
-    console.log(`[GrokAuto] Redirected download to: ${folder}/${item.filename}`);
+    const ext = item.filename.split('.').pop() || 'mp4';
+    downloadCounter++;
+    const numberedName = `${downloadCounter}.${ext}`;
+    suggest({ filename: `${folder}/${numberedName}` });
+    console.log(`[GrokAuto] Redirected download to: ${folder}/${numberedName}`);
   } else if (pendingDownloadFolder) {
-    // Any download while folder is set (might be triggered by the button)
     const folder = pendingDownloadFolder;
     pendingDownloadFolder = null;
     if (pendingDownloadTimeout) {
       clearTimeout(pendingDownloadTimeout);
       pendingDownloadTimeout = null;
     }
-    suggest({ filename: `${folder}/${item.filename}` });
-    console.log(`[GrokAuto] Redirected download to: ${folder}/${item.filename}`);
+    const ext = item.filename.split('.').pop() || 'mp4';
+    downloadCounter++;
+    const numberedName = `${downloadCounter}.${ext}`;
+    suggest({ filename: `${folder}/${numberedName}` });
+    console.log(`[GrokAuto] Redirected download to: ${folder}/${numberedName}`);
   } else {
     suggest();
   }
@@ -57,7 +63,7 @@ chrome.runtime.onMessage.addListener(
   (message: Message, sender, sendResponse) => {
     switch (message.type) {
       case 'START_AUTOMATION':
-        // Forward to content script on grok.com tab
+        downloadCounter = 0;
         forwardToGrokTab(message).then(sendResponse);
         return true;
 

@@ -3,10 +3,16 @@ export type GenerationMode =
   | 'frame-to-video'
   | 'remix-video'
   | 'text-to-image'
-  | 'image-to-image';
+  | 'image-to-image'
+  | 'resize';
+
+export type ResizeRatio = '2:3' | '3:2' | '1:1' | '9:16' | '16:9';
 
 export type PromptStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type PromptImageMode = 'new' | 'reuse';
+export type VideoDownloadQuality = 'none' | '480p' | '480p-upscale' | '720p';
+export type ImageDownloadQuality = 'none' | '1k';
+export type ImageFrameMode = 'start-only' | 'start-end';
 
 export interface PromptItem {
   id: string;
@@ -32,7 +38,8 @@ export interface AppSettings {
 
 export interface VideoSettings {
   aspectRatio: '2:3' | '3:2' | '1:1' | '9:16' | '16:9';
-  duration: 5 | 10;
+  duration: 6 | 10;
+  resolution: '480p' | '720p';
 }
 
 export type TabType = 'control' | 'settings';

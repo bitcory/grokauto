@@ -1,4 +1,4 @@
-import type { GenerationMode, PromptItem, VideoSettings } from '../types';
+import type { GenerationMode, PromptItem, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageFrameMode, ResizeRatio } from '../types';
 
 // Popup → Background → Content
 export interface StartAutomationMessage {
@@ -13,6 +13,11 @@ export interface StartAutomationMessage {
     saveFolder: string;
     autoRename: boolean;
     videoSettings: VideoSettings;
+    maxRetries: number;
+    videoDownloadQuality: VideoDownloadQuality;
+    imageDownloadQuality: ImageDownloadQuality;
+    imageFrameMode: ImageFrameMode;
+    resizeTargetRatio?: ResizeRatio;
   };
 }
 

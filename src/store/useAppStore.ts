@@ -4,7 +4,33 @@ import type {
   TabType,
   VideoSettings,
   PromptImageMode,
+  VideoDownloadQuality,
+  ImageDownloadQuality,
+  ImageFrameMode,
+  ResizeRatio,
 } from '../types';
+
+const DEFAULTS = {
+  mode: 'text-to-image' as GenerationMode,
+  concurrentPrompts: 1,
+  delayMin: 5,
+  delayMax: 5,
+  outputPerPrompt: 1,
+  saveFolder: 'GrokAuto',
+  autoRename: true,
+  language: 'ko' as 'ko' | 'en',
+  videoSettings: {
+    aspectRatio: '16:9' as VideoSettings['aspectRatio'],
+    duration: 6 as 6 | 10,
+    resolution: '480p' as '480p' | '720p',
+  },
+  maxRetries: 5,
+  videoDownloadQuality: '480p-upscale' as VideoDownloadQuality,
+  imageDownloadQuality: '1k' as ImageDownloadQuality,
+  defaultImageMode: 'new' as PromptImageMode,
+  imageFrameMode: 'start-only' as ImageFrameMode,
+  resizeTargetRatio: '16:9' as ResizeRatio,
+};
 
 interface AppState {
   // UI
@@ -48,6 +74,19 @@ interface AppState {
   // Settings
   videoSettings: VideoSettings;
   setVideoSettings: (s: Partial<VideoSettings>) => void;
+  maxRetries: number;
+  setMaxRetries: (n: number) => void;
+  videoDownloadQuality: VideoDownloadQuality;
+  setVideoDownloadQuality: (q: VideoDownloadQuality) => void;
+  imageDownloadQuality: ImageDownloadQuality;
+  setImageDownloadQuality: (q: ImageDownloadQuality) => void;
+  defaultImageMode: PromptImageMode;
+  setDefaultImageMode: (m: PromptImageMode) => void;
+  imageFrameMode: ImageFrameMode;
+  setImageFrameMode: (m: ImageFrameMode) => void;
+  resizeTargetRatio: ResizeRatio;
+  setResizeTargetRatio: (r: ResizeRatio) => void;
+
   // Language
   language: 'ko' | 'en';
   setLanguage: (lang: 'ko' | 'en') => void;
@@ -56,7 +95,8 @@ interface AppState {
   isRunning: boolean;
   setIsRunning: (v: boolean) => void;
 
-  // Persistence
+  // Reset & Persistence
+  resetToDefaults: () => void;
   loadFromStorage: () => Promise<void>;
   saveToStorage: () => Promise<void>;
 }
@@ -67,22 +107,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTab: 'control',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  mode: 'text-to-image',
+  mode: DEFAULTS.mode,
   setMode: (mode) => {
     const isVideo = mode === 'text-to-video' || mode === 'frame-to-video' || mode === 'remix-video';
-    const defaultDelay = isVideo ? 15 : 5;
-    set({ mode, delayMin: defaultDelay, delayMax: defaultDelay });
+    const isResize = mode === 'resize';
+    const defaultDelay = isVideo ? 15 : isResize ? 10 : 5;
+    const needsImage = mode === 'image-to-image' || mode === 'frame-to-video' || mode === 'remix-video' || isResize;
+    set({
+      mode,
+      delayMin: defaultDelay,
+      delayMax: defaultDelay,
+      ...(needsImage ? {} : { uploadedImages: [], promptImageModes: [] }),
+    });
     get().saveToStorage();
   },
 
-  concurrentPrompts: 1,
+  concurrentPrompts: DEFAULTS.concurrentPrompts,
   setConcurrentPrompts: (n) => {
     set({ concurrentPrompts: n });
     get().saveToStorage();
   },
 
-  delayMin: 5,
-  delayMax: 5,
+  delayMin: DEFAULTS.delayMin,
+  delayMax: DEFAULTS.delayMax,
   setDelay: (min, max) => {
     set({ delayMin: min, delayMax: max });
     get().saveToStorage();
@@ -110,32 +157,30 @@ export const useAppStore = create<AppState>((set, get) => ({
   syncPromptImageModes: (promptCount) =>
     set((s) => {
       const modes = [...s.promptImageModes];
-      while (modes.length < promptCount) modes.push('new');
+      const defaultMode = get().defaultImageMode;
+      while (modes.length < promptCount) modes.push(defaultMode);
       return { promptImageModes: modes.slice(0, promptCount) };
     }),
 
-  outputPerPrompt: 1,
+  outputPerPrompt: DEFAULTS.outputPerPrompt,
   setOutputPerPrompt: (n) => {
     set({ outputPerPrompt: n });
     get().saveToStorage();
   },
 
-  saveFolder: 'GrokAuto',
+  saveFolder: DEFAULTS.saveFolder,
   setSaveFolder: (folder) => {
     set({ saveFolder: folder });
     get().saveToStorage();
   },
 
-  autoRename: true,
+  autoRename: DEFAULTS.autoRename,
   setAutoRename: (v) => {
     set({ autoRename: v });
     get().saveToStorage();
   },
 
-  videoSettings: {
-    aspectRatio: '16:9',
-    duration: 5,
-  },
+  videoSettings: { ...DEFAULTS.videoSettings },
   setVideoSettings: (s) =>
     set((state) => {
       const vs = { ...state.videoSettings, ...s };
@@ -143,7 +188,43 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { videoSettings: vs };
     }),
 
-  language: 'ko',
+  maxRetries: DEFAULTS.maxRetries,
+  setMaxRetries: (n) => {
+    set({ maxRetries: Math.max(1, Math.min(20, n)) });
+    get().saveToStorage();
+  },
+
+  videoDownloadQuality: DEFAULTS.videoDownloadQuality,
+  setVideoDownloadQuality: (q) => {
+    set({ videoDownloadQuality: q });
+    get().saveToStorage();
+  },
+
+  imageDownloadQuality: DEFAULTS.imageDownloadQuality,
+  setImageDownloadQuality: (q) => {
+    set({ imageDownloadQuality: q });
+    get().saveToStorage();
+  },
+
+  defaultImageMode: DEFAULTS.defaultImageMode,
+  setDefaultImageMode: (m) => {
+    set({ defaultImageMode: m });
+    get().saveToStorage();
+  },
+
+  imageFrameMode: DEFAULTS.imageFrameMode,
+  setImageFrameMode: (m) => {
+    set({ imageFrameMode: m });
+    get().saveToStorage();
+  },
+
+  resizeTargetRatio: DEFAULTS.resizeTargetRatio,
+  setResizeTargetRatio: (r) => {
+    set({ resizeTargetRatio: r });
+    get().saveToStorage();
+  },
+
+  language: DEFAULTS.language,
   setLanguage: (lang) => {
     set({ language: lang });
     get().saveToStorage();
@@ -152,21 +233,47 @@ export const useAppStore = create<AppState>((set, get) => ({
   isRunning: false,
   setIsRunning: (v) => set({ isRunning: v }),
 
+  resetToDefaults: () => {
+    set({
+      mode: DEFAULTS.mode,
+      concurrentPrompts: DEFAULTS.concurrentPrompts,
+      delayMin: DEFAULTS.delayMin,
+      delayMax: DEFAULTS.delayMax,
+      outputPerPrompt: DEFAULTS.outputPerPrompt,
+      saveFolder: DEFAULTS.saveFolder,
+      autoRename: DEFAULTS.autoRename,
+      videoSettings: { ...DEFAULTS.videoSettings },
+      maxRetries: DEFAULTS.maxRetries,
+      videoDownloadQuality: DEFAULTS.videoDownloadQuality,
+      imageDownloadQuality: DEFAULTS.imageDownloadQuality,
+      defaultImageMode: DEFAULTS.defaultImageMode,
+      imageFrameMode: DEFAULTS.imageFrameMode,
+      resizeTargetRatio: DEFAULTS.resizeTargetRatio,
+    });
+    get().saveToStorage();
+  },
+
   loadFromStorage: async () => {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEY);
       const data = result[STORAGE_KEY];
       if (data) {
         set({
-          mode: data.mode ?? 'text-to-image',
-          concurrentPrompts: data.concurrentPrompts ?? 1,
-          delayMin: data.delayMin ?? 5,
-          delayMax: data.delayMax ?? 5,
-          outputPerPrompt: data.outputPerPrompt ?? 1,
-          saveFolder: data.saveFolder ?? 'GrokAuto',
-          autoRename: data.autoRename ?? true,
-          language: data.language ?? 'ko',
-          videoSettings: data.videoSettings ?? { aspectRatio: '16:9', duration: 5 },
+          mode: data.mode ?? DEFAULTS.mode,
+          concurrentPrompts: data.concurrentPrompts ?? DEFAULTS.concurrentPrompts,
+          delayMin: data.delayMin ?? DEFAULTS.delayMin,
+          delayMax: data.delayMax ?? DEFAULTS.delayMax,
+          outputPerPrompt: data.outputPerPrompt ?? DEFAULTS.outputPerPrompt,
+          saveFolder: data.saveFolder ?? DEFAULTS.saveFolder,
+          autoRename: data.autoRename ?? DEFAULTS.autoRename,
+          language: data.language ?? DEFAULTS.language,
+          videoSettings: data.videoSettings ?? { ...DEFAULTS.videoSettings },
+          maxRetries: data.maxRetries ?? DEFAULTS.maxRetries,
+          videoDownloadQuality: data.videoDownloadQuality ?? DEFAULTS.videoDownloadQuality,
+          imageDownloadQuality: data.imageDownloadQuality ?? DEFAULTS.imageDownloadQuality,
+          defaultImageMode: data.defaultImageMode ?? DEFAULTS.defaultImageMode,
+          imageFrameMode: data.imageFrameMode ?? DEFAULTS.imageFrameMode,
+          resizeTargetRatio: data.resizeTargetRatio ?? DEFAULTS.resizeTargetRatio,
         });
       }
     } catch {
@@ -188,6 +295,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           autoRename: s.autoRename,
           language: s.language,
           videoSettings: s.videoSettings,
+          maxRetries: s.maxRetries,
+          videoDownloadQuality: s.videoDownloadQuality,
+          imageDownloadQuality: s.imageDownloadQuality,
+          defaultImageMode: s.defaultImageMode,
+          imageFrameMode: s.imageFrameMode,
+          resizeTargetRatio: s.resizeTargetRatio,
         },
       });
     } catch {

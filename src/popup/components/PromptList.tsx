@@ -20,12 +20,16 @@ export default function PromptList() {
     setPromptImageMode,
     syncPromptImageModes,
     uploadedImages,
+    imageFrameMode,
   } = useAppStore();
 
   const prompts = parsePrompts(promptText);
   const showImageMode = mode === 'text-to-image' || mode === 'image-to-image';
   const needsImage = mode === 'image-to-image' || mode === 'frame-to-video' || mode === 'remix-video';
-  const isMatched = uploadedImages.length === prompts.length;
+  const isStartEnd = imageFrameMode === 'start-end' && mode === 'frame-to-video';
+  const isMatched = isStartEnd
+    ? uploadedImages.length === prompts.length * 2
+    : uploadedImages.length === prompts.length;
 
   // Sync modes array with prompt count
   useEffect(() => {
@@ -70,11 +74,36 @@ export default function PromptList() {
                 {text}
               </span>
               {needsImage && uploadedImages.length > 0 && (
-                <img
-                  src={isMatched ? uploadedImages[i] : uploadedImages[0]}
-                  alt=""
-                  className="w-6 h-6 object-cover rounded-neo-sm border-2 border-foreground shrink-0"
-                />
+                isStartEnd ? (
+                  <div className="flex gap-0.5 shrink-0">
+                    {(() => {
+                      const startImg = isMatched ? uploadedImages[i * 2] : uploadedImages[0];
+                      const endImg = isMatched ? uploadedImages[i * 2 + 1] : uploadedImages[1];
+                      return (
+                        <>
+                          {startImg && (
+                            <div className="relative">
+                              <img src={startImg} alt="" className="w-6 h-6 object-cover rounded-neo-sm border-2 border-foreground" />
+                              <span className="absolute bottom-0 left-0 right-0 text-[6px] font-bold text-center bg-foreground/80 text-white rounded-b-sm">S</span>
+                            </div>
+                          )}
+                          {endImg && (
+                            <div className="relative">
+                              <img src={endImg} alt="" className="w-6 h-6 object-cover rounded-neo-sm border-2 border-foreground" />
+                              <span className="absolute bottom-0 left-0 right-0 text-[6px] font-bold text-center bg-foreground/80 text-white rounded-b-sm">E</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <img
+                    src={isMatched ? uploadedImages[i] : uploadedImages[0]}
+                    alt=""
+                    className="w-6 h-6 object-cover rounded-neo-sm border-2 border-foreground shrink-0"
+                  />
+                )
               )}
             </div>
           </div>
@@ -83,11 +112,17 @@ export default function PromptList() {
 
       {needsImage && uploadedImages.length > 0 && (
         <p className="text-[9px] text-muted-foreground mt-1.5 leading-relaxed">
-          {isMatched
-            ? `이미지 ${uploadedImages.length}장 ↔ 프롬프트 ${prompts.length}개 1:1 매칭`
-            : uploadedImages.length === 1
-              ? `이미지 1장 → 모든 프롬프트에 공유`
-              : `이미지 ${uploadedImages.length}장 → 각 프롬프트에 전체 적용`
+          {isStartEnd
+            ? isMatched
+              ? `이미지 ${uploadedImages.length}장 ↔ 프롬프트 ${prompts.length}개 (2장씩 시작/종료 매칭)`
+              : uploadedImages.length === 2
+                ? `이미지 2장 (시작/종료) → 모든 프롬프트에 공유`
+                : `이미지 ${uploadedImages.length}장 → 각 프롬프트에 전체 적용`
+            : isMatched
+              ? `이미지 ${uploadedImages.length}장 ↔ 프롬프트 ${prompts.length}개 1:1 매칭`
+              : uploadedImages.length === 1
+                ? `이미지 1장 → 모든 프롬프트에 공유`
+                : `이미지 ${uploadedImages.length}장 → 각 프롬프트에 전체 적용`
           }
         </p>
       )}

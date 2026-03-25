@@ -32,7 +32,8 @@ function simulateRealClick(el: HTMLElement): void {
  * Click a chip button in the form that matches the given text exactly.
  */
 async function clickFormChip(label: string): Promise<boolean> {
-  const form = document.querySelector('form');
+  const input = document.querySelector('div[contenteditable="true"]');
+  const form = input?.closest('form') ?? document.querySelector('form');
   if (!form) return false;
 
   const buttons = form.querySelectorAll('button');
@@ -54,6 +55,13 @@ async function clickFormChip(label: string): Promise<boolean> {
  */
 export async function setVideoDuration(duration: number): Promise<boolean> {
   return clickFormChip(`${duration}s`);
+}
+
+/**
+ * Set video resolution chip (480p / 720p)
+ */
+export async function setVideoResolution(resolution: '480p' | '720p'): Promise<boolean> {
+  return clickFormChip(resolution);
 }
 
 /**

@@ -1,9 +1,10 @@
-import type { GenerationMode, PromptItem, VideoSettings } from '../types';
+import type { GenerationMode, PromptItem, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageFrameMode, ResizeRatio } from '../types';
 import { typePrompt, submitWithEnter, clickSend, clearPrompt } from './dom/promptInput';
 import { uploadImages } from './dom/imageUpload';
+import { typeStartEndFramePrompt } from './dom/imageMention';
 import { switchMode } from './dom/modeSwitch';
 import { setAspectRatio } from './dom/aspectRatio';
-import { setVideoDuration, clickVideoUpscale, waitForUpscaleComplete, clickVideoDownload } from './dom/videoSettings';
+import { setVideoDuration, setVideoResolution, clickVideoUpscale, waitForUpscaleComplete, clickVideoDownload } from './dom/videoSettings';
 import { navigateToImagine, startNewImagineSession } from './dom/navigate';
 import { waitForGenerationComplete } from './dom/waiters';
 import { clickDownloadButton } from './dom/resultCapture';
@@ -19,6 +20,11 @@ interface AutomationConfig {
   saveFolder: string;
   autoRename: boolean;
   videoSettings: VideoSettings;
+  maxRetries: number;
+  videoDownloadQuality: VideoDownloadQuality;
+  imageDownloadQuality: ImageDownloadQuality;
+  imageFrameMode: ImageFrameMode;
+  resizeTargetRatio?: ResizeRatio;
 }
 
 let isRunning = false;
@@ -42,11 +48,17 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
     concurrentPrompts,
     delayMin,
     delayMax,
-    outputPerPrompt,
     saveFolder,
-    autoRename,
     videoSettings,
+    maxRetries,
+    videoDownloadQuality,
+    imageDownloadQuality,
+    imageFrameMode,
+    resizeTargetRatio,
   } = config;
+
+  const isVideo = mode === 'text-to-video' || mode === 'frame-to-video' || mode === 'remix-video';
+  const isResize = mode === 'resize';
 
   // Navigate to grok.com/imagine first
   console.log(`[GrokAuto] runAutomation: mode=${mode}, prompts=${prompts.length}`);
@@ -79,10 +91,17 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
   }
   await delay(300);
 
-  if (mode === 'text-to-video' || mode === 'frame-to-video' || mode === 'remix-video') {
-    await setVideoDuration(videoSettings.duration);
+  // Apply aspect ratio — for resize mode use the target ratio
+  const targetRatio = isResize && resizeTargetRatio ? resizeTargetRatio : videoSettings.aspectRatio;
+  await setAspectRatio(targetRatio);
+  await delay(300);
+
+  if (isVideo) {
+    // Determine resolution from download quality setting
+    const resolution = videoDownloadQuality === '720p' ? '720p' : '480p';
+    await setVideoResolution(resolution);
     await delay(300);
-    await setAspectRatio(videoSettings.aspectRatio);
+    await setVideoDuration(videoSettings.duration);
     await delay(300);
   }
 
@@ -92,103 +111,152 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
 
     const batch = prompts.slice(i, i + concurrentPrompts);
 
-    // Process each prompt in the batch sequentially
-    // (grok.com typically supports one prompt at a time)
     for (const prompt of batch) {
       if (!isRunning) break;
 
-      // Notify status: running
-      chrome.runtime.sendMessage({
-        type: 'PROMPT_STATUS_UPDATE',
-        payload: { promptId: prompt.id, status: 'running' },
-      });
+      // Retry loop
+      let succeeded = false;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        if (!isRunning) break;
 
-      try {
-        const onImagine = await startNewImagineSession();
-        if (!onImagine) {
-          throw new Error('Failed to start new imagine session');
-        }
-        await delay(300);
-
-        await switchMode(mode);
-        await delay(300);
-
-        if (prompt.imageDataUrls && prompt.imageDataUrls.length > 0) {
-          const uploaded = await uploadImages(prompt.imageDataUrls);
-          if (!uploaded) {
-            throw new Error('Failed to upload images');
-          }
-          await delay(300);
+        if (attempt > 0) {
+          console.log(`[GrokAuto] Retry ${attempt}/${maxRetries} for prompt: ${prompt.text.slice(0, 30)}...`);
         }
 
-        const typed = await typePrompt(prompt.text);
-        if (!typed) {
-          throw new Error('Failed to type prompt');
-        }
-
-        await delay(300);
-        // Try Enter key first, check if generation started, else click send button
-        await submitWithEnter();
-        await delay(1000);
-        // Check if generation started (form/input might disappear or change)
-        const inputAfterEnter = document.querySelector('div[contenteditable="true"]');
-        const hasText = inputAfterEnter?.textContent?.trim();
-        if (hasText) {
-          // Text still in input = Enter didn't submit, click send button
-          console.log('[GrokAuto] Enter did not submit, clicking send button');
-          await clickSend();
-        }
-
-        // Wait for generation to complete
-        const isVideo = mode === 'text-to-video' || mode === 'frame-to-video' || mode === 'remix-video';
-        const genTimeout = isVideo ? 300000 : 120000;
-        const completed = await waitForGenerationComplete(genTimeout, isVideo);
-
-        if (!completed) {
-          throw new Error('Generation timed out');
-        }
-
-        await delay(isVideo ? 3000 : 1500);
-
-        // Set download folder
-        await chrome.runtime.sendMessage({
-          type: 'SET_DOWNLOAD_FOLDER',
-          payload: { folder: saveFolder },
+        // Notify status: running
+        chrome.runtime.sendMessage({
+          type: 'PROMPT_STATUS_UPDATE',
+          payload: { promptId: prompt.id, status: 'running' },
         });
 
-        if (isVideo) {
-          // Video: "추가 옵션" → "동영상 업스케일" → wait → "다운로드"
-          const upscaled = await clickVideoUpscale();
-          if (upscaled) {
-            await waitForUpscaleComplete(180000);
+        try {
+          const onImagine = await startNewImagineSession();
+          if (!onImagine) {
+            throw new Error('Failed to start new imagine session');
+          }
+          await delay(1000);
+
+          await switchMode(mode);
+          await delay(300);
+
+          // Re-apply settings after new session
+          await setAspectRatio(targetRatio);
+          await delay(300);
+
+          if (isVideo) {
+            const resolution = videoDownloadQuality === '720p' ? '720p' : '480p';
+            await setVideoResolution(resolution);
+            await delay(300);
+            await setVideoDuration(videoSettings.duration);
+            await delay(300);
+          }
+
+          // Load images from chrome.storage.local
+          const imgKey = `img_${prompt.id}`;
+          const stored = await chrome.storage.local.get(imgKey);
+          const imageDataUrls: string[] | undefined = stored[imgKey];
+          if (imageDataUrls && imageDataUrls.length > 0) {
+            const uploaded = await uploadImages(imageDataUrls);
+            if (!uploaded) {
+              throw new Error('Failed to upload images');
+            }
+            await delay(300);
+            // Only clean up on last attempt or success
+          }
+
+          // Use @Image mentions for start/end frame mode
+          let typed: boolean;
+          if (imageFrameMode === 'start-end' && imageDataUrls && imageDataUrls.length === 2) {
+            typed = await typeStartEndFramePrompt(prompt.text);
+          } else {
+            typed = await typePrompt(prompt.text);
+          }
+          if (!typed) {
+            throw new Error('Failed to type prompt');
+          }
+
+          await delay(5000);
+          await submitWithEnter();
+          await delay(2000);
+
+          // Check if generation started
+          const inputAfterEnter = document.querySelector('div[contenteditable="true"]');
+          const hasText = inputAfterEnter?.textContent?.trim();
+          if (hasText && hasText.length > 0) {
+            console.log('[GrokAuto] Enter did not submit after 2s, clicking send button');
+            await clickSend();
+            await delay(1000);
+          }
+
+          // Wait for generation to complete
+          const genTimeout = isVideo ? 180000 : 120000;
+          const completed = await waitForGenerationComplete(genTimeout, isVideo);
+
+          if (!completed) {
+            throw new Error('Generation timed out');
+          }
+
+          await delay(isVideo ? 5000 : isResize ? 5000 : 3000);
+
+          // Set download folder
+          await chrome.runtime.sendMessage({
+            type: 'SET_DOWNLOAD_FOLDER',
+            payload: { folder: saveFolder },
+          });
+
+          // Download based on quality settings
+          if (isVideo) {
+            if (videoDownloadQuality !== 'none') {
+              if (videoDownloadQuality === '480p-upscale') {
+                const upscaled = await clickVideoUpscale();
+                if (upscaled) {
+                  await waitForUpscaleComplete(120000);
+                  await delay(3000);
+                }
+              }
+              await clickVideoDownload();
+            }
+          } else {
+            if (imageDownloadQuality !== 'none') {
+              clickDownloadButton(false);
+            }
+          }
+
+          // Clear prompt for next
+          clearPrompt();
+
+          // Clean up stored image data on success
+          if (imageDataUrls && imageDataUrls.length > 0) {
+            await chrome.storage.local.remove(imgKey);
+          }
+
+          // Notify status: completed
+          chrome.runtime.sendMessage({
+            type: 'PROMPT_STATUS_UPDATE',
+            payload: { promptId: prompt.id, status: 'completed' },
+          });
+
+          succeeded = true;
+          break; // Exit retry loop on success
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          console.error(`[GrokAuto] Prompt failed (attempt ${attempt + 1}/${maxRetries}): ${errorMsg}`);
+
+          if (attempt >= maxRetries - 1) {
+            // Last attempt — mark as failed
+            chrome.runtime.sendMessage({
+              type: 'PROMPT_STATUS_UPDATE',
+              payload: {
+                promptId: prompt.id,
+                status: 'failed',
+                error: errorMsg,
+              },
+            });
+          } else {
+            // Wait before retry
             await delay(3000);
           }
-          await clickVideoDownload();
-        } else {
-          // Image: click download button (4th button in toolbar)
-          clickDownloadButton(false);
         }
-
-        // Clear prompt for next
-        clearPrompt();
-
-        // Notify status: completed
-        chrome.runtime.sendMessage({
-          type: 'PROMPT_STATUS_UPDATE',
-          payload: { promptId: prompt.id, status: 'completed' },
-        });
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-        console.error(`[GrokAuto] Prompt failed: ${errorMsg}`);
-
-        chrome.runtime.sendMessage({
-          type: 'PROMPT_STATUS_UPDATE',
-          payload: {
-            promptId: prompt.id,
-            status: 'failed',
-            error: errorMsg,
-          },
-        });
       }
 
       // Delay between prompts
@@ -198,7 +266,5 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
   }
 
   isRunning = false;
-
-  // Notify automation complete
   chrome.runtime.sendMessage({ type: 'AUTOMATION_COMPLETE' });
 }

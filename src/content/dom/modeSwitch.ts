@@ -9,6 +9,7 @@ const MODE_LABELS: Record<GenerationMode, string[]> = {
   'remix-video': ['비디오', 'Video'],
   'text-to-image': ['이미지', 'Image'],
   'image-to-image': ['이미지', 'Image'],
+  'resize': ['이미지', 'Image'], // resize uses image-to-image mode on grok.com
 };
 
 /**
@@ -18,8 +19,9 @@ const MODE_LABELS: Record<GenerationMode, string[]> = {
 export async function switchMode(mode: GenerationMode): Promise<boolean> {
   const labels = MODE_LABELS[mode];
 
-  // Find the form element
-  const form = document.querySelector('form');
+  // Find the form element (scope to the input form, not page-level forms)
+  const input = document.querySelector('div[contenteditable="true"]');
+  const form = input?.closest('form') ?? document.querySelector('form');
   if (!form) {
     console.error('[GrokAuto] Form not found for mode switch');
     return false;

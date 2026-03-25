@@ -1,7 +1,7 @@
 {
   "header": {
     "title": "Grok Automation",
-    "version": "v1.0.0",
+    "version": "V1.0.1",
     "description": "Grok AI Automation Tool"
   },
   "tabs": {
@@ -14,7 +14,9 @@
     "text-to-image": "Text→Image",
     "frame-to-video": "Image→Video",
     "text-to-video": "Text→Video",
-    "remix-video": "Remix→Video"
+    "remix-video": "Remix→Video",
+    "resize": "Resize",
+    "resizeRatio": "Target Ratio"
   },
   "control": {
     "concurrent": "Concurrent Prompts",
@@ -41,7 +43,12 @@
     "remove": "Remove",
     "options": "Image Options",
     "resizeToFit": "Resize to fit",
-    "autoCharacter": "Auto-add character image"
+    "autoCharacter": "Auto-add character image",
+    "frameMode": "Image Frame Mode",
+    "startOnly": "Use start frame only",
+    "startEnd": "Use start and end frames",
+    "startLabel": "Start",
+    "endLabel": "End"
   },
   "output": {
     "label": "Output Settings",
@@ -71,15 +78,58 @@
     "stop": "Stop"
   },
   "settings": {
+    "defaultMode": {
+      "label": "Default Mode",
+      "desc": "Default mode when creating new content."
+    },
+    "aspectRatio": {
+      "label": "Default Aspect Ratio",
+      "desc": "Video/image frame ratio."
+    },
     "video": {
-      "label": "Video Settings",
+      "label": "Default Video Options",
       "aspectRatio": "Aspect Ratio",
-      "duration": "Duration (sec)",
+      "resolution": "Resolution",
+      "duration": "Duration",
+      "desc": "Default duration setting for prompts.",
       "motionStyle": "Motion Style",
       "normal": "Normal",
       "slow": "Slow",
       "fast": "Fast"
     },
+    "imageMode": {
+      "label": "Default Image Mode Option",
+      "desc": "Default input mode for image prompts.",
+      "new": "New image",
+      "reuse": "Reuse"
+    },
+    "retry": {
+      "label": "Max Retries on Failure",
+      "desc": "Number of retries when generation fails (1-20)."
+    },
+    "downloadQualityVideo": {
+      "label": "Auto Download Quality (Video)",
+      "desc": "Select video quality for auto download.",
+      "none": "No download",
+      "480p": "480p",
+      "480p-upscale": "480p (Upscale)",
+      "720p": "720p"
+    },
+    "downloadQualityImage": {
+      "label": "Auto Download Quality (Image)",
+      "desc": "Select image quality for auto download.",
+      "none": "No download",
+      "1k": "1k"
+    },
+    "language": {
+      "label": "Language",
+      "desc": "Select your preferred language."
+    },
+    "download": {
+      "label": "Download Settings",
+      "desc": "Files are saved to Chrome's download folder."
+    },
+    "resetDefaults": "Reset to Defaults",
     "image": {
       "label": "Image Settings",
       "model": "Image Model",

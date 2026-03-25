@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { Upload, X } from 'lucide-react';
+import type { ImageFrameMode } from '../../types';
 
 /**
  * Extract a trailing number from a filename (before the extension).
@@ -15,14 +16,15 @@ function extractFileNumber(filename: string): number {
 
 export default function ImageUpload() {
   const { t } = useTranslation();
-  const { mode, uploadedImages, addUploadedImage, removeUploadedImage } =
+  const { mode, uploadedImages, addUploadedImage, removeUploadedImage, imageFrameMode, setImageFrameMode } =
     useAppStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const needsImage =
     mode === 'frame-to-video' ||
     mode === 'image-to-image' ||
-    mode === 'remix-video';
+    mode === 'remix-video' ||
+    mode === 'resize';
 
   const handleFiles = useCallback(
     (files: FileList) => {
@@ -91,6 +93,22 @@ export default function ImageUpload() {
         />
       </div>
 
+      {mode === 'frame-to-video' && (
+        <div className="mt-2">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
+            {t('image.frameMode')}
+          </label>
+          <select
+            value={imageFrameMode}
+            onChange={(e) => setImageFrameMode(e.target.value as ImageFrameMode)}
+            className="memphis-select text-[10px] w-full"
+          >
+            <option value="start-only">{t('image.startOnly')}</option>
+            <option value="start-end">{t('image.startEnd')}</option>
+          </select>
+        </div>
+      )}
+
       {uploadedImages.length > 0 && (
         <div className="flex gap-1.5 mt-2 flex-wrap">
           {uploadedImages.map((img, idx) => (
@@ -100,6 +118,11 @@ export default function ImageUpload() {
                 alt=""
                 className="w-12 h-12 object-cover rounded-neo-sm border-2 border-foreground"
               />
+              {mode === 'frame-to-video' && imageFrameMode === 'start-end' && uploadedImages.length >= 2 && (
+                <span className="absolute bottom-0 left-0 right-0 text-[7px] font-bold text-center bg-foreground/80 text-white rounded-b-sm">
+                  {idx % 2 === 0 ? t('image.startLabel') : t('image.endLabel')}
+                </span>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
