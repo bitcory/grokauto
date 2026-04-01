@@ -1,6 +1,24 @@
 import { querySelector } from './selectors';
 
 /**
+ * Detect and dismiss the video feedback/comparison screen ("어떤 동영상을 남겨두고 싶으신가요?")
+ * by clicking the "건너뛰기" (Skip) button.
+ * Returns true if the screen was found and dismissed.
+ */
+export function dismissFeedbackScreen(): boolean {
+  const allButtons = document.querySelectorAll('button');
+  for (const btn of allButtons) {
+    const text = (btn as HTMLElement).innerText?.trim() ?? '';
+    if (text === '건너뛰기' || text === 'Skip') {
+      console.log('[GrokAuto] Feedback screen detected — clicking skip');
+      (btn as HTMLElement).click();
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Wait for generation to complete.
  * For images: wait for new <img> elements + DOM stabilization (5s min, 2s stable).
  * For videos: wait for <video> with valid src + longer stabilization (20s min, 5s stable).
@@ -94,6 +112,7 @@ export function waitForGenerationComplete(
 
     const checkInterval = setInterval(() => {
       if (settled) { clearInterval(checkInterval); return; }
+      dismissFeedbackScreen();
       tryResolve();
     }, 2000);
 

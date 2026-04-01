@@ -4,7 +4,8 @@ export type GenerationMode =
   | 'remix-video'
   | 'text-to-image'
   | 'image-to-image'
-  | 'resize';
+  | 'resize'
+  | 'talking-video';
 
 export type ResizeRatio = '2:3' | '3:2' | '1:1' | '9:16' | '16:9';
 

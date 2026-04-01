@@ -14,6 +14,7 @@ import PromptQueue from './components/PromptQueue';
 import ActionButtons from './components/ActionButtons';
 import SettingsPanel from './components/SettingsPanel';
 import NotGrokPage from './components/NotGrokPage';
+import TalkingVideoPanel from './components/TalkingVideoPanel';
 
 function isGrokUrl(url?: string): boolean {
   if (!url) return false;
@@ -95,6 +96,7 @@ export default function App() {
             {activeTab === 'control' ? (
               <div className="card-stagger">
                 <ModeSelector />
+                <TalkingVideoPanel />
                 <ControlPanel />
                 <PromptInput />
                 <ImageUpload />

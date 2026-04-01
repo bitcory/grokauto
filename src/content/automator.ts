@@ -6,7 +6,7 @@ import { switchMode } from './dom/modeSwitch';
 import { setAspectRatio } from './dom/aspectRatio';
 import { setVideoDuration, setVideoResolution, clickVideoUpscale, waitForUpscaleComplete, clickVideoDownload } from './dom/videoSettings';
 import { navigateToImagine, startNewImagineSession } from './dom/navigate';
-import { waitForGenerationComplete } from './dom/waiters';
+import { waitForGenerationComplete, dismissFeedbackScreen } from './dom/waiters';
 import { clickDownloadButton } from './dom/resultCapture';
 import { randomDelay, delay } from './utils/delay';
 
@@ -196,7 +196,10 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
             throw new Error('Generation timed out');
           }
 
+          // Dismiss feedback/comparison screen if it appeared
+          dismissFeedbackScreen();
           await delay(isVideo ? 5000 : isResize ? 5000 : 3000);
+          dismissFeedbackScreen(); // check again after delay
 
           // Set download folder
           await chrome.runtime.sendMessage({

@@ -109,10 +109,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   mode: DEFAULTS.mode,
   setMode: (mode) => {
-    const isVideo = mode === 'text-to-video' || mode === 'frame-to-video' || mode === 'remix-video';
+    const isVideo = mode === 'text-to-video' || mode === 'frame-to-video' || mode === 'remix-video' || mode === 'talking-video';
     const isResize = mode === 'resize';
     const defaultDelay = isVideo ? 15 : isResize ? 10 : 5;
-    const needsImage = mode === 'image-to-image' || mode === 'frame-to-video' || mode === 'remix-video' || isResize;
+    const needsImage = mode === 'image-to-image' || mode === 'frame-to-video' || mode === 'remix-video' || isResize || mode === 'talking-video';
     set({
       mode,
       delayMin: defaultDelay,

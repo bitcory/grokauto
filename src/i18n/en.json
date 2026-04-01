@@ -1,7 +1,7 @@
 {
   "header": {
     "title": "Grok Automation",
-    "version": "V1.0.1",
+    "version": "V1.2.0",
     "description": "Grok AI Automation Tool"
   },
   "tabs": {
@@ -16,7 +16,33 @@
     "text-to-video": "Text→Video",
     "remix-video": "Remix→Video",
     "resize": "Resize",
+    "talking-video": "Talking Video",
     "resizeRatio": "Target Ratio"
+  },
+  "talkingVideo": {
+    "type": {
+      "interview": "Interview",
+      "monologue": "Talking"
+    },
+    "characterInfo": "Character Info",
+    "characterPlaceholder": "Character (e.g. 2-year-old Korea baby)",
+    "clothingPlaceholder": "Clothing (e.g. yellow t-shirt)",
+    "settingPlaceholder": "Background (e.g. traditional Korean home)",
+    "expressionPlaceholder": "Expression (e.g. bright, innocent smile)",
+    "interviewerPlaceholder": "Interviewer role (e.g. 20s woman reporter)",
+    "camera": {
+      "knee": "Knee shot",
+      "mid": "Mid shot",
+      "waist": "Waist shot",
+      "fullBody": "Full body"
+    },
+    "scenes": "Dialogue Scenes ({{count}})",
+    "addScene": "Add Scene",
+    "scene": "Scene",
+    "interviewerLine": "Interviewer line (optional)",
+    "characterLine": "Character line *",
+    "genImage": "Image Prompt",
+    "genVideo": "Video Prompt"
   },
   "control": {
     "concurrent": "Concurrent Prompts",

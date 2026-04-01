@@ -1,0 +1,263 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../../store/useAppStore';
+import { Plus, Trash2, ImageIcon, Video } from 'lucide-react';
+import { cn } from '../../utils/cn';
+
+type VideoType = 'interview' | 'monologue';
+
+interface Scene {
+  id: string;
+  interviewerLine: string;
+  characterLine: string;
+}
+
+export default function TalkingVideoPanel() {
+  const { t } = useTranslation();
+  const { mode, setMode, setPromptText } = useAppStore();
+
+  const [videoType, setVideoType] = useState<VideoType>('interview');
+  const [characterName, setCharacterName] = useState('');
+  const [clothing, setClothing] = useState('');
+  const [setting, setSetting] = useState('');
+  const [cameraAngle, setCameraAngle] = useState('knee');
+  const [expression, setExpression] = useState('bright, innocent smile');
+  const [language, setLanguage] = useState('Korean');
+  const [interviewerRole, setInterviewerRole] = useState('20s woman Interviewer');
+  const [scenes, setScenes] = useState<Scene[]>([
+    { id: '1', interviewerLine: '', characterLine: '' },
+  ]);
+
+  if (mode !== 'talking-video') return null;
+
+  const isInterview = videoType === 'interview';
+
+  const generateImagePrompt = () => {
+    const name = characterName || 'character';
+    const cloth = clothing || 'casual outfit';
+    const bg = setting || 'blurred indoor';
+
+    const prompt = isInterview
+      ? `A photorealistic vertical 9:16 mid-shot with central framing.\n` +
+        `A standing [${name}] wearing a [${cloth}]. In the foreground, a hand is holding a [small black lapel microphone] towards the ${name} from the bottom right. [${name}] and the hand are in sharp focus, while the background of a [${bg}] is extremely blurred with a heavy bokeh effect. Cinematic lighting, shallow depth of field, social media vlog style, high quality. camera angle is ${cameraAngle} shot. Eye-level camera angle. handheld shot. --ar 9:16`
+      : `A photorealistic vertical 9:16 mid-shot with central framing.\n` +
+        `A standing [${name}] wearing a [${cloth}], looking directly at the camera with natural expression. [${name}] is in sharp focus, while the background of a [${bg}] is extremely blurred with a heavy bokeh effect. Cinematic lighting, shallow depth of field, social media vlog style, high quality. camera angle is ${cameraAngle} shot. Eye-level camera angle. handheld shot. --ar 9:16`;
+
+    setMode('text-to-image');
+    setPromptText(prompt);
+  };
+
+  const generateVideoPrompts = () => {
+    const name = characterName || 'character';
+    const videoPrompts = scenes
+      .filter((s) => s.characterLine.trim() || (isInterview && s.interviewerLine.trim()))
+      .map((scene) => {
+        const scriptLines: string[] = [];
+        if (isInterview && scene.interviewerLine.trim()) {
+          scriptLines.push(
+            `* ${interviewerRole} (Off-screen): Professional and clear announcer tone. "${scene.interviewerLine}"`
+          );
+        }
+        if (scene.characterLine.trim()) {
+          scriptLines.push(
+            `* ${name} : Speaks the ${language} script naturally: "${scene.characterLine}"`
+          );
+        }
+
+        const header = isInterview
+          ? `[[STRICTLY STATIC VERTICAL INTERVIEW SHOT, LOCKED CAMERA WITH ZERO ZOOM, DO NOT ZOOM IN]]`
+          : `[[STRICTLY STATIC VERTICAL TALKING SHOT, LOCKED CAMERA WITH ZERO ZOOM, DO NOT ZOOM IN]]`;
+
+        return (
+          `${header}\n` +
+          `[CAMERA]\n` +
+          `Standing handheld style. FIXED POSITION for the entire duration. The framing must not change from the first frame. Absolutely no zooming in or out. Only microscopic, natural organic hand-jiggles.\n` +
+          `[SCRIPT]\n` +
+          `${scriptLines.join('\n')}\n` +
+          `[SPEECH STYLE]\n` +
+          `The ${name}'s ${language} pronunciation is clear and precise like an adult's.\n` +
+          `[PERFORMANCE]\n` +
+          `${name} with a ${expression} expression. High facial stability, consistent features. 4k, cinematic soft lighting, heavy bokeh background.`
+        );
+      });
+
+    if (videoPrompts.length === 0) return;
+    setMode('frame-to-video');
+    setPromptText(videoPrompts.join('\n'));
+  };
+
+  const addScene = () => {
+    setScenes((s) => [...s, { id: Date.now().toString(), interviewerLine: '', characterLine: '' }]);
+  };
+
+  const removeScene = (id: string) => {
+    if (scenes.length > 1) setScenes((s) => s.filter((sc) => sc.id !== id));
+  };
+
+  const updateScene = (
+    id: string,
+    field: 'interviewerLine' | 'characterLine',
+    value: string
+  ) => {
+    setScenes((s) => s.map((sc) => (sc.id === id ? { ...sc, [field]: value } : sc)));
+  };
+
+  return (
+    <div className="px-4 py-3 space-y-3">
+      {/* Video Type Toggle */}
+      <div className="flex gap-2">
+        {(['interview', 'monologue'] as VideoType[]).map((type) => (
+          <button
+            key={type}
+            onClick={() => setVideoType(type)}
+            className={cn(
+              'flex-1 py-2 text-[11px] font-bold rounded-neo-sm border-2 transition-all',
+              videoType === type
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-white text-foreground border-foreground hover:bg-muted'
+            )}
+          >
+            {t(`talkingVideo.type.${type}`)}
+          </button>
+        ))}
+      </div>
+
+      {/* Character Info */}
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+          {t('talkingVideo.characterInfo')}
+        </label>
+        <input
+          type="text"
+          placeholder={t('talkingVideo.characterPlaceholder')}
+          value={characterName}
+          onChange={(e) => setCharacterName(e.target.value)}
+          className="memphis-input !py-1.5 text-xs"
+        />
+        <input
+          type="text"
+          placeholder={t('talkingVideo.clothingPlaceholder')}
+          value={clothing}
+          onChange={(e) => setClothing(e.target.value)}
+          className="memphis-input !py-1.5 text-xs"
+        />
+        <input
+          type="text"
+          placeholder={t('talkingVideo.settingPlaceholder')}
+          value={setting}
+          onChange={(e) => setSetting(e.target.value)}
+          className="memphis-input !py-1.5 text-xs"
+        />
+        <div className="flex gap-2">
+          <select
+            value={cameraAngle}
+            onChange={(e) => setCameraAngle(e.target.value)}
+            className="memphis-select flex-1"
+          >
+            <option value="knee">{t('talkingVideo.camera.knee')}</option>
+            <option value="mid">{t('talkingVideo.camera.mid')}</option>
+            <option value="waist">{t('talkingVideo.camera.waist')}</option>
+            <option value="full body">{t('talkingVideo.camera.fullBody')}</option>
+          </select>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="memphis-select flex-1"
+          >
+            <option value="Korean">한국어</option>
+            <option value="English">English</option>
+            <option value="Japanese">日本語</option>
+            <option value="Chinese">中文</option>
+          </select>
+        </div>
+        <input
+          type="text"
+          placeholder={t('talkingVideo.expressionPlaceholder')}
+          value={expression}
+          onChange={(e) => setExpression(e.target.value)}
+          className="memphis-input !py-1.5 text-xs"
+        />
+        {isInterview && (
+          <input
+            type="text"
+            placeholder={t('talkingVideo.interviewerPlaceholder')}
+            value={interviewerRole}
+            onChange={(e) => setInterviewerRole(e.target.value)}
+            className="memphis-input !py-1.5 text-xs"
+          />
+        )}
+      </div>
+
+      {/* Scenes */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            {t('talkingVideo.scenes', { count: scenes.length })}
+          </label>
+          <button
+            onClick={addScene}
+            className="neo-btn px-2 py-1 text-[10px] gap-1 bg-white text-foreground"
+          >
+            <Plus className="w-3 h-3" />
+            {t('talkingVideo.addScene')}
+          </button>
+        </div>
+
+        {scenes.map((scene, idx) => (
+          <div
+            key={scene.id}
+            className="border-2 border-foreground rounded-neo-sm p-2 space-y-1.5 bg-white"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-muted-foreground">
+                {t('talkingVideo.scene')} {idx + 1}
+              </span>
+              {scenes.length > 1 && (
+                <button
+                  onClick={() => removeScene(scene.id)}
+                  className="text-[--danger] hover:opacity-70 transition-opacity"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            {isInterview && (
+              <input
+                type="text"
+                placeholder={t('talkingVideo.interviewerLine')}
+                value={scene.interviewerLine}
+                onChange={(e) => updateScene(scene.id, 'interviewerLine', e.target.value)}
+                className="memphis-input !py-1 text-[11px]"
+              />
+            )}
+            <input
+              type="text"
+              placeholder={t('talkingVideo.characterLine')}
+              value={scene.characterLine}
+              onChange={(e) => updateScene(scene.id, 'characterLine', e.target.value)}
+              className="memphis-input !py-1 text-[11px]"
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Generate Buttons */}
+      <div className="flex gap-2">
+        <button
+          onClick={generateImagePrompt}
+          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-secondary/20 text-foreground border-foreground"
+        >
+          <ImageIcon className="w-3.5 h-3.5" />
+          {t('talkingVideo.genImage')}
+        </button>
+        <button
+          onClick={generateVideoPrompts}
+          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-primary/10 text-primary border-primary"
+        >
+          <Video className="w-3.5 h-3.5" />
+          {t('talkingVideo.genVideo')}
+        </button>
+      </div>
+    </div>
+  );
+}

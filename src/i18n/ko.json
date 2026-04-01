@@ -1,7 +1,7 @@
 {
   "header": {
     "title": "Grok 자동화",
-    "version": "V1.0.1",
+    "version": "V1.2.0",
     "description": "Grok AI 자동화 도구"
   },
   "tabs": {
@@ -16,7 +16,33 @@
     "text-to-video": "텍스트→비디오",
     "remix-video": "리믹스→비디오",
     "resize": "사이즈변경",
+    "talking-video": "말하는영상",
     "resizeRatio": "변환 비율"
+  },
+  "talkingVideo": {
+    "type": {
+      "interview": "인터뷰 영상",
+      "monologue": "말하는 영상"
+    },
+    "characterInfo": "캐릭터 정보",
+    "characterPlaceholder": "캐릭터 (예: 2살 한국 아기)",
+    "clothingPlaceholder": "의상 (예: 노란 티셔츠)",
+    "settingPlaceholder": "배경 (예: 전통 한국 집)",
+    "expressionPlaceholder": "표정 (예: bright, innocent smile)",
+    "interviewerPlaceholder": "인터뷰어 역할 (예: 20대 여성 리포터)",
+    "camera": {
+      "knee": "무릎 샷",
+      "mid": "미드 샷",
+      "waist": "웨이스트 샷",
+      "fullBody": "풀 바디"
+    },
+    "scenes": "대화 장면 ({{count}}개)",
+    "addScene": "장면 추가",
+    "scene": "장면",
+    "interviewerLine": "인터뷰어 대사 (선택)",
+    "characterLine": "캐릭터 대사 *",
+    "genImage": "이미지 프롬프트 생성",
+    "genVideo": "영상 프롬프트 생성"
   },
   "control": {
     "concurrent": "동시 프롬프트 수",

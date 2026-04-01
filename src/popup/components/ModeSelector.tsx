@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { cn } from '../../utils/cn';
-import { ImagePlus, Type, Film, Clapperboard, Maximize } from 'lucide-react';
+import { ImagePlus, Type, Film, Clapperboard, Maximize, MessageCircleHeart } from 'lucide-react';
 import type { GenerationMode, ResizeRatio } from '../../types';
 import type { LucideIcon } from 'lucide-react';
 
@@ -12,6 +12,7 @@ const MODE_ICONS: Record<GenerationMode, LucideIcon> = {
   'text-to-video': Clapperboard,
   'remix-video': Film,
   'resize': Maximize,
+  'talking-video': MessageCircleHeart,
 };
 
 const MODES: GenerationMode[] = [
@@ -20,6 +21,7 @@ const MODES: GenerationMode[] = [
   'frame-to-video',
   'text-to-video',
   'resize',
+  'talking-video',
 ];
 
 const RESIZE_RATIOS: ResizeRatio[] = ['16:9', '9:16', '1:1', '3:2', '2:3'];
