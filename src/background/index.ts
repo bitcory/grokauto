@@ -26,10 +26,21 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 let pendingDownloadFolder: string | null = null;
 let pendingDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
 let downloadCounter = 0;
+let sessionPrefix = ''; // 세션별 타임스탬프 접두사 (YYYYMMDD_HHmm)
+
+function generateSessionPrefix(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const mo = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const h = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  return `${y}${mo}${d}_${h}${mi}`;
+}
 
 // Intercept downloads from grok.com and redirect to specified folder
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-  if (pendingDownloadFolder && item.url.includes('grok.com')) {
+  if (pendingDownloadFolder) {
     const folder = pendingDownloadFolder;
     pendingDownloadFolder = null;
     if (pendingDownloadTimeout) {
@@ -38,19 +49,7 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     }
     const ext = item.filename.split('.').pop() || 'mp4';
     downloadCounter++;
-    const numberedName = `${downloadCounter}.${ext}`;
-    suggest({ filename: `${folder}/${numberedName}` });
-    console.log(`[GrokAuto] Redirected download to: ${folder}/${numberedName}`);
-  } else if (pendingDownloadFolder) {
-    const folder = pendingDownloadFolder;
-    pendingDownloadFolder = null;
-    if (pendingDownloadTimeout) {
-      clearTimeout(pendingDownloadTimeout);
-      pendingDownloadTimeout = null;
-    }
-    const ext = item.filename.split('.').pop() || 'mp4';
-    downloadCounter++;
-    const numberedName = `${downloadCounter}.${ext}`;
+    const numberedName = `${downloadCounter}_${sessionPrefix}.${ext}`;
     suggest({ filename: `${folder}/${numberedName}` });
     console.log(`[GrokAuto] Redirected download to: ${folder}/${numberedName}`);
   } else {
@@ -64,6 +63,7 @@ chrome.runtime.onMessage.addListener(
     switch (message.type) {
       case 'START_AUTOMATION':
         downloadCounter = 0;
+        sessionPrefix = generateSessionPrefix();
         forwardToGrokTab(message).then(sendResponse);
         return true;
 

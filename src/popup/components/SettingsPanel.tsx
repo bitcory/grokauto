@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import type { GenerationMode, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, PromptImageMode } from '../../types';
+import type { GenerationMode, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageGenerationSpeed } from '../../types';
 
 function SettingSection({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
   return (
@@ -21,6 +21,10 @@ export default function SettingsPanel() {
   const {
     mode,
     setMode,
+    concurrentPrompts,
+    setConcurrentPrompts,
+    delayMin,
+    setDelay,
     videoSettings,
     setVideoSettings,
     maxRetries,
@@ -29,8 +33,8 @@ export default function SettingsPanel() {
     setVideoDownloadQuality,
     imageDownloadQuality,
     setImageDownloadQuality,
-    defaultImageMode,
-    setDefaultImageMode,
+    imageGenerationSpeed,
+    setImageGenerationSpeed,
     language,
     setLanguage,
     resetToDefaults,
@@ -50,7 +54,38 @@ export default function SettingsPanel() {
           <option value="text-to-video">{t('mode.text-to-video')}</option>
           <option value="frame-to-video">{t('mode.frame-to-video')}</option>
           <option value="remix-video">{t('mode.remix-video')}</option>
+          <option value="resize">{t('mode.resize')}</option>
+          <option value="talking-video">{t('mode.talking-video')}</option>
+          <option value="cinematic-intro">{t('mode.cinematic-intro')}</option>
         </select>
+      </SettingSection>
+
+      {/* Concurrent Prompts */}
+      <SettingSection label={t('settings.concurrent.label')} desc={t('settings.concurrent.desc')}>
+        <select
+          value={concurrentPrompts}
+          onChange={(e) => setConcurrentPrompts(Number(e.target.value))}
+          className="memphis-select w-full mt-1"
+        >
+          {[1, 2, 3, 4, 5].map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+      </SettingSection>
+
+      {/* Random Delay */}
+      <SettingSection label={t('settings.delay.label')} desc={t('settings.delay.desc')}>
+        <input
+          type="number"
+          min={0}
+          max={120}
+          value={delayMin}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setDelay(v, v);
+          }}
+          className="memphis-input w-full mt-1 text-sm font-semibold"
+        />
       </SettingSection>
 
       {/* Default Aspect Ratio */}
@@ -81,18 +116,6 @@ export default function SettingsPanel() {
         >
           <option value={6}>6s</option>
           <option value={10}>10s</option>
-        </select>
-      </SettingSection>
-
-      {/* Default Image Mode */}
-      <SettingSection label={t('settings.imageMode.label')} desc={t('settings.imageMode.desc')}>
-        <select
-          value={defaultImageMode}
-          onChange={(e) => setDefaultImageMode(e.target.value as PromptImageMode)}
-          className="memphis-select w-full mt-1"
-        >
-          <option value="new">{t('settings.imageMode.new')}</option>
-          <option value="reuse">{t('settings.imageMode.reuse')}</option>
         </select>
       </SettingSection>
 
@@ -147,6 +170,18 @@ export default function SettingsPanel() {
         >
           <option value="1k">{t('settings.downloadQualityImage.1k')}</option>
           <option value="none">{t('settings.downloadQualityImage.none')}</option>
+        </select>
+      </SettingSection>
+
+      {/* Image Generation Speed */}
+      <SettingSection label={t('settings.imageSpeed.label')} desc={t('settings.imageSpeed.desc')}>
+        <select
+          value={imageGenerationSpeed}
+          onChange={(e) => setImageGenerationSpeed(e.target.value as ImageGenerationSpeed)}
+          className="memphis-select w-full mt-1"
+        >
+          <option value="quality">{t('settings.imageSpeed.quality')}</option>
+          <option value="speed">{t('settings.imageSpeed.speed')}</option>
         </select>
       </SettingSection>
 

@@ -1,7 +1,7 @@
 {
   "header": {
     "title": "Grok Automation",
-    "version": "V1.2.0",
+    "version": "V1.6.0",
     "description": "Grok AI Automation Tool"
   },
   "tabs": {
@@ -17,6 +17,7 @@
     "remix-video": "Remix→Video",
     "resize": "Resize",
     "talking-video": "Talking Video",
+    "cinematic-intro": "Cinematic Intro",
     "resizeRatio": "Target Ratio"
   },
   "talkingVideo": {
@@ -44,6 +45,15 @@
     "genImage": "Image Prompt",
     "genVideo": "Video Prompt"
   },
+  "cinematicIntro": {
+    "jsonPlaceholder": "Paste cinematic intro JSON here...",
+    "parseError": "JSON parse error",
+    "sceneList": "Scenes ({{count}})",
+    "summary": "Images {{imageCount}} / Videos {{videoCount}}",
+    "genImage": "Generate Images",
+    "genVideo": "Generate Videos",
+    "noScenes": "No scenes. Paste JSON to begin."
+  },
   "control": {
     "concurrent": "Concurrent Prompts",
     "delay": "Random Delay (sec)",
@@ -57,11 +67,11 @@
     "hint": "Separate each prompt with a blank line.",
     "loadTxt": "Upload .txt",
     "perPromptMode": "Per-prompt image mode",
-    "modeNew": "Create new",
-    "modeReuse": "Reuse",
-    "modeNewDesc": "Create new: Each prompt uses its own uploaded image.",
-    "modeReuseDesc": "Reuse: Uses the last generated image from the previous prompt as input.",
-    "chars": "{{count}} characters"
+    "chars": "{{count}} characters",
+    "refSingle": "1:1",
+    "refAll": "All",
+    "refSelect": "Select",
+    "refModeLabel": "Ref Mode"
   },
   "image": {
     "upload": "Image Upload",
@@ -123,12 +133,6 @@
       "slow": "Slow",
       "fast": "Fast"
     },
-    "imageMode": {
-      "label": "Default Image Mode Option",
-      "desc": "Default input mode for image prompts.",
-      "new": "New image",
-      "reuse": "Reuse"
-    },
     "retry": {
       "label": "Max Retries on Failure",
       "desc": "Number of retries when generation fails (1-20)."
@@ -147,6 +151,12 @@
       "none": "No download",
       "1k": "1k"
     },
+    "imageSpeed": {
+      "label": "Image Generation Speed",
+      "desc": "Speed is faster but lower quality, Quality is slower but higher quality",
+      "speed": "Speed",
+      "quality": "Quality"
+    },
     "language": {
       "label": "Language",
       "desc": "Select your preferred language."
@@ -154,6 +164,14 @@
     "download": {
       "label": "Download Settings",
       "desc": "Files are saved to Chrome's download folder."
+    },
+    "concurrent": {
+      "label": "Concurrent Prompts",
+      "desc": "Number of prompts to process simultaneously (1-5)."
+    },
+    "delay": {
+      "label": "Random Delay (sec)",
+      "desc": "Wait time between prompts (seconds)."
     },
     "resetDefaults": "Reset to Defaults",
     "image": {

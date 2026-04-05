@@ -16,7 +16,7 @@ export default function PromptInput() {
   const fileRef = useRef<HTMLInputElement>(null);
   const count = countPrompts(promptText);
 
-  if (mode === 'resize' || mode === 'talking-video') return null;
+  if (mode === 'resize' || mode === 'talking-video' || mode === 'cinematic-intro') return null;
 
   const handleTxtUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

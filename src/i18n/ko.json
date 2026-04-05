@@ -1,7 +1,7 @@
 {
   "header": {
     "title": "Grok 자동화",
-    "version": "V1.2.0",
+    "version": "V1.6.0",
     "description": "Grok AI 자동화 도구"
   },
   "tabs": {
@@ -17,6 +17,7 @@
     "remix-video": "리믹스→비디오",
     "resize": "사이즈변경",
     "talking-video": "말하는영상",
+    "cinematic-intro": "시네마틱인트로",
     "resizeRatio": "변환 비율"
   },
   "talkingVideo": {
@@ -44,6 +45,15 @@
     "genImage": "이미지 프롬프트 생성",
     "genVideo": "영상 프롬프트 생성"
   },
+  "cinematicIntro": {
+    "jsonPlaceholder": "시네마틱 인트로 JSON을 붙여넣으세요...",
+    "parseError": "JSON 파싱 오류",
+    "sceneList": "씬 목록 ({{count}}개)",
+    "summary": "이미지 {{imageCount}}장 / 영상 {{videoCount}}개",
+    "genImage": "이미지 생성",
+    "genVideo": "영상 생성",
+    "noScenes": "씬이 없습니다. JSON을 붙여넣으세요."
+  },
   "control": {
     "concurrent": "동시 프롬프트 수",
     "delay": "랜덤 지연 (초)",
@@ -57,11 +67,11 @@
     "hint": "각 프롬프트를 빈 줄로 구분하세요.",
     "loadTxt": ".txt 파일 업로드",
     "perPromptMode": "프롬프트별 이미지 모드",
-    "modeNew": "새로 만들기",
-    "modeReuse": "재사용",
-    "modeNewDesc": "새로 만들기: 각 프롬프트는 자체 업로드된 이미지를 사용합니다.",
-    "modeReuseDesc": "재사용: 이전 프롬프트에서 생성된 마지막 이미지를 입력으로 사용합니다.",
-    "chars": "{{count}} characters"
+    "chars": "{{count}} characters",
+    "refSingle": "1:1",
+    "refAll": "전체",
+    "refSelect": "선택",
+    "refModeLabel": "참조 방식"
   },
   "image": {
     "upload": "이미지 업로드",
@@ -123,12 +133,6 @@
       "slow": "느림",
       "fast": "빠름"
     },
-    "imageMode": {
-      "label": "기본 이미지 모드 옵션",
-      "desc": "이미지 프롬프트의 기본 입력 모드.",
-      "new": "새 이미지",
-      "reuse": "재사용"
-    },
     "retry": {
       "label": "실패 시 최대 재시도 횟수",
       "desc": "생성이 실패할 경우 재시도 횟수 (1-20)."
@@ -147,6 +151,12 @@
       "none": "다운로드 안함",
       "1k": "1k"
     },
+    "imageSpeed": {
+      "label": "이미지 생성 속도",
+      "desc": "Speed는 빠르지만 품질이 낮고, Quality는 느리지만 고품질",
+      "speed": "Speed (빠름)",
+      "quality": "Quality (고품질)"
+    },
     "language": {
       "label": "언어",
       "desc": "선호하는 언어를 선택하세요."
@@ -154,6 +164,14 @@
     "download": {
       "label": "다운로드 설정",
       "desc": "파일은 Chrome의 다운로드 폴더에 저장됩니다."
+    },
+    "concurrent": {
+      "label": "동시 프롬프트 수",
+      "desc": "동시에 처리할 프롬프트 수 (1-5)."
+    },
+    "delay": {
+      "label": "랜덤 지연 (초)",
+      "desc": "프롬프트 사이의 대기 시간 (초)."
     },
     "resetDefaults": "기본값으로 재설정",
     "image": {

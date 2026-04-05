@@ -155,6 +155,125 @@ export async function waitForMediaLoaded(
 }
 
 /**
+ * Wait for all images in the last <article> to be fully loaded (complete && naturalWidth > 0).
+ */
+export function waitForImageFullyLoaded(timeoutMs: number = 30000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+
+    const check = () => {
+      if (Date.now() - startTime > timeoutMs) {
+        console.warn('[GrokAuto] Image loading timed out');
+        resolve(false);
+        return;
+      }
+
+      const articles = document.querySelectorAll('article');
+      const lastArticle = articles[articles.length - 1];
+      if (!lastArticle) {
+        setTimeout(check, 500);
+        return;
+      }
+
+      const imgs = lastArticle.querySelectorAll('img');
+      if (imgs.length === 0) {
+        setTimeout(check, 500);
+        return;
+      }
+
+      const allLoaded = Array.from(imgs).every((img) => img.complete && img.naturalWidth > 0);
+      if (allLoaded) {
+        console.log(`[GrokAuto] Image loaded: true (${imgs.length} images, ${Math.round((Date.now() - startTime) / 1000)}s)`);
+        resolve(true);
+      } else {
+        setTimeout(check, 500);
+      }
+    };
+
+    check();
+  });
+}
+
+/**
+ * Wait for the last <video> element to have readyState >= 2 (HAVE_CURRENT_DATA).
+ */
+export function waitForVideoLoaded(timeoutMs: number = 30000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+
+    const check = () => {
+      if (Date.now() - startTime > timeoutMs) {
+        console.warn('[GrokAuto] Video loading timed out');
+        resolve(false);
+        return;
+      }
+
+      const videos = document.querySelectorAll('video');
+      const lastVideo = videos[videos.length - 1];
+      if (!lastVideo) {
+        setTimeout(check, 500);
+        return;
+      }
+
+      if (lastVideo.readyState >= 2) {
+        console.log(`[GrokAuto] Video loaded: true (readyState=${lastVideo.readyState}, ${Math.round((Date.now() - startTime) / 1000)}s)`);
+        resolve(true);
+      } else {
+        setTimeout(check, 500);
+      }
+    };
+
+    check();
+  });
+}
+
+/**
+ * Detect Cloudflare challenge and wait for user to solve it.
+ * Returns true if challenge was detected and resolved, false if no challenge or timeout.
+ */
+export function waitForCloudflareChallenge(timeoutMs: number = 300000): Promise<boolean> {
+  const CLOUDFLARE_SELECTORS = [
+    '#challenge-running',
+    '#challenge-stage',
+    'iframe[src*="challenges.cloudflare.com"]',
+    '#turnstile-wrapper',
+    '#cf-challenge-running',
+  ];
+
+  const isCloudflarePresent = (): boolean => {
+    return CLOUDFLARE_SELECTORS.some((sel) => document.querySelector(sel) !== null);
+  };
+
+  if (!isCloudflarePresent()) {
+    return Promise.resolve(false);
+  }
+
+  console.log('[GrokAuto] Cloudflare challenge detected — waiting for user to solve...');
+
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+
+    const poll = () => {
+      if (Date.now() - startTime > timeoutMs) {
+        console.warn('[GrokAuto] Cloudflare challenge wait timed out');
+        resolve(false);
+        return;
+      }
+
+      if (!isCloudflarePresent()) {
+        console.log(`[GrokAuto] Cloudflare challenge resolved (${Math.round((Date.now() - startTime) / 1000)}s)`);
+        resolve(true);
+        return;
+      }
+
+      setTimeout(poll, 1000);
+    };
+
+    poll();
+  });
+}
+
+/**
  * Wait for a specified element to appear in the DOM
  */
 export function waitForElement(

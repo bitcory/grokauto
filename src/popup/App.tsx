@@ -5,7 +5,6 @@ import { useQueueStore } from '../store/useQueueStore';
 import Header from './components/Header';
 import TabNav from './components/TabNav';
 import ModeSelector from './components/ModeSelector';
-import ControlPanel from './components/ControlPanel';
 import PromptInput from './components/PromptInput';
 import ImageUpload from './components/ImageUpload';
 import OutputSettings from './components/OutputSettings';
@@ -15,6 +14,7 @@ import ActionButtons from './components/ActionButtons';
 import SettingsPanel from './components/SettingsPanel';
 import NotGrokPage from './components/NotGrokPage';
 import TalkingVideoPanel from './components/TalkingVideoPanel';
+import CinematicIntroPanel from './components/CinematicIntroPanel';
 
 function isGrokUrl(url?: string): boolean {
   if (!url) return false;
@@ -97,9 +97,9 @@ export default function App() {
               <div className="card-stagger">
                 <ModeSelector />
                 <TalkingVideoPanel />
-                <ControlPanel />
-                <PromptInput />
+                <CinematicIntroPanel />
                 <ImageUpload />
+                <PromptInput />
                 <PromptList />
                 <OutputSettings />
                 <PromptQueue />

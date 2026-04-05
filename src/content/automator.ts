@@ -1,12 +1,13 @@
-import type { GenerationMode, PromptItem, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageFrameMode, ResizeRatio } from '../types';
+import type { GenerationMode, PromptItem, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageFrameMode, ImageGenerationSpeed, ResizeRatio } from '../types';
 import { typePrompt, submitWithEnter, clickSend, clearPrompt } from './dom/promptInput';
 import { uploadImages } from './dom/imageUpload';
 import { typeStartEndFramePrompt } from './dom/imageMention';
 import { switchMode } from './dom/modeSwitch';
 import { setAspectRatio } from './dom/aspectRatio';
+import { setImageGenerationSpeed } from './dom/imageSpeed';
 import { setVideoDuration, setVideoResolution, clickVideoUpscale, waitForUpscaleComplete, clickVideoDownload } from './dom/videoSettings';
 import { navigateToImagine, startNewImagineSession } from './dom/navigate';
-import { waitForGenerationComplete, dismissFeedbackScreen } from './dom/waiters';
+import { waitForGenerationComplete, dismissFeedbackScreen, waitForImageFullyLoaded, waitForVideoLoaded, waitForCloudflareChallenge } from './dom/waiters';
 import { clickDownloadButton } from './dom/resultCapture';
 import { randomDelay, delay } from './utils/delay';
 
@@ -24,6 +25,7 @@ interface AutomationConfig {
   videoDownloadQuality: VideoDownloadQuality;
   imageDownloadQuality: ImageDownloadQuality;
   imageFrameMode: ImageFrameMode;
+  imageGenerationSpeed: ImageGenerationSpeed;
   resizeTargetRatio?: ResizeRatio;
 }
 
@@ -54,6 +56,7 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
     videoDownloadQuality,
     imageDownloadQuality,
     imageFrameMode,
+    imageGenerationSpeed,
     resizeTargetRatio,
   } = config;
 
@@ -90,6 +93,13 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
     return;
   }
   await delay(300);
+
+  // Apply image generation speed (image modes only)
+  const isImage = !isVideo && !isResize;
+  if (isImage) {
+    await setImageGenerationSpeed(imageGenerationSpeed);
+    await delay(300);
+  }
 
   // Apply aspect ratio — for resize mode use the target ratio
   const targetRatio = isResize && resizeTargetRatio ? resizeTargetRatio : videoSettings.aspectRatio;
@@ -140,6 +150,10 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
           await delay(300);
 
           // Re-apply settings after new session
+          if (isImage) {
+            await setImageGenerationSpeed(imageGenerationSpeed);
+            await delay(300);
+          }
           await setAspectRatio(targetRatio);
           await delay(300);
 
@@ -151,17 +165,16 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
             await delay(300);
           }
 
-          // Load images from chrome.storage.local
+          // Load images from chrome.storage.local (per-prompt 또는 cinematic 공유 키)
           const imgKey = `img_${prompt.id}`;
-          const stored = await chrome.storage.local.get(imgKey);
-          const imageDataUrls: string[] | undefined = stored[imgKey];
+          const stored = await chrome.storage.local.get([imgKey, 'img_cinematic_ref']);
+          const imageDataUrls: string[] | undefined = stored[imgKey] ?? stored['img_cinematic_ref'];
           if (imageDataUrls && imageDataUrls.length > 0) {
             const uploaded = await uploadImages(imageDataUrls);
             if (!uploaded) {
               throw new Error('Failed to upload images');
             }
             await delay(300);
-            // Only clean up on last attempt or success
           }
 
           // Use @Image mentions for start/end frame mode
@@ -179,6 +192,9 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
           await submitWithEnter();
           await delay(2000);
 
+          // Check for Cloudflare challenge after submit
+          await waitForCloudflareChallenge();
+
           // Check if generation started
           const inputAfterEnter = document.querySelector('div[contenteditable="true"]');
           const hasText = inputAfterEnter?.textContent?.trim();
@@ -192,22 +208,28 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
           const genTimeout = isVideo ? 180000 : 120000;
           const completed = await waitForGenerationComplete(genTimeout, isVideo);
 
+          // Check for Cloudflare challenge during generation
+          await waitForCloudflareChallenge();
+
           if (!completed) {
             throw new Error('Generation timed out');
           }
 
           // Dismiss feedback/comparison screen if it appeared
           dismissFeedbackScreen();
-          await delay(isVideo ? 5000 : isResize ? 5000 : 3000);
-          dismissFeedbackScreen(); // check again after delay
 
-          // Set download folder
-          await chrome.runtime.sendMessage({
-            type: 'SET_DOWNLOAD_FOLDER',
-            payload: { folder: saveFolder },
-          });
+          // Wait for media to be fully loaded before downloading
+          if (isVideo) {
+            await waitForVideoLoaded(30000);
+            await delay(2000);
+          } else {
+            await waitForImageFullyLoaded(30000);
+            await delay(1000);
+          }
 
-          // Download based on quality settings
+          dismissFeedbackScreen(); // check again after media load
+
+          // Download based on quality settings (with retry)
           if (isVideo) {
             if (videoDownloadQuality !== 'none') {
               if (videoDownloadQuality === '480p-upscale') {
@@ -217,11 +239,30 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
                   await delay(3000);
                 }
               }
+              // Set download folder right before download click
+              await chrome.runtime.sendMessage({
+                type: 'SET_DOWNLOAD_FOLDER',
+                payload: { folder: saveFolder },
+              });
               await clickVideoDownload();
             }
           } else {
-            if (imageDownloadQuality !== 'none') {
-              clickDownloadButton(false);
+            // text-to-image: grok.com UI 변경으로 다운로드 스킵
+            // image-to-image, resize 등 다른 이미지 모드는 기존 로직 유지
+            if (mode !== 'text-to-image' && imageDownloadQuality !== 'none') {
+              // Set download folder right before download click
+              await chrome.runtime.sendMessage({
+                type: 'SET_DOWNLOAD_FOLDER',
+                payload: { folder: saveFolder },
+              });
+              // Retry download button click up to 3 times
+              let downloadClicked = false;
+              for (let dlAttempt = 0; dlAttempt < 3; dlAttempt++) {
+                downloadClicked = clickDownloadButton(false);
+                if (downloadClicked) break;
+                console.log(`[GrokAuto] Download button click failed, retry ${dlAttempt + 1}/3`);
+                await delay(2000);
+              }
             }
           }
 
@@ -267,6 +308,9 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
       await randomDelay(delayMin, delayMax);
     }
   }
+
+  // 공유 레퍼런스 이미지 정리
+  await chrome.storage.local.remove('img_cinematic_ref');
 
   isRunning = false;
   chrome.runtime.sendMessage({ type: 'AUTOMATION_COMPLETE' });

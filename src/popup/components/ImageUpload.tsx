@@ -24,7 +24,8 @@ export default function ImageUpload() {
     mode === 'frame-to-video' ||
     mode === 'image-to-image' ||
     mode === 'remix-video' ||
-    mode === 'resize';
+    mode === 'resize' ||
+    mode === 'cinematic-intro';
 
   const handleFiles = useCallback(
     (files: FileList) => {

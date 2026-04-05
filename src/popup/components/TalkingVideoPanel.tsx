@@ -1,32 +1,23 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { Plus, Trash2, ImageIcon, Video } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
-type VideoType = 'interview' | 'monologue';
-
-interface Scene {
-  id: string;
-  interviewerLine: string;
-  characterLine: string;
-}
-
 export default function TalkingVideoPanel() {
   const { t } = useTranslation();
-  const { mode, setMode, setPromptText } = useAppStore();
+  const { mode, setMode, setPromptText, talkingVideo, setTalkingVideo, setTalkingVideoScenes } = useAppStore();
 
-  const [videoType, setVideoType] = useState<VideoType>('interview');
-  const [characterName, setCharacterName] = useState('');
-  const [clothing, setClothing] = useState('');
-  const [setting, setSetting] = useState('');
-  const [cameraAngle, setCameraAngle] = useState('knee');
-  const [expression, setExpression] = useState('bright, innocent smile');
-  const [language, setLanguage] = useState('Korean');
-  const [interviewerRole, setInterviewerRole] = useState('20s woman Interviewer');
-  const [scenes, setScenes] = useState<Scene[]>([
-    { id: '1', interviewerLine: '', characterLine: '' },
-  ]);
+  const {
+    videoType,
+    characterName,
+    clothing,
+    setting,
+    cameraAngle,
+    expression,
+    language,
+    interviewerRole,
+    scenes,
+  } = talkingVideo;
 
   if (mode !== 'talking-video') return null;
 
@@ -87,11 +78,11 @@ export default function TalkingVideoPanel() {
   };
 
   const addScene = () => {
-    setScenes((s) => [...s, { id: Date.now().toString(), interviewerLine: '', characterLine: '' }]);
+    setTalkingVideoScenes([...scenes, { id: Date.now().toString(), interviewerLine: '', characterLine: '' }]);
   };
 
   const removeScene = (id: string) => {
-    if (scenes.length > 1) setScenes((s) => s.filter((sc) => sc.id !== id));
+    if (scenes.length > 1) setTalkingVideoScenes(scenes.filter((sc) => sc.id !== id));
   };
 
   const updateScene = (
@@ -99,17 +90,17 @@ export default function TalkingVideoPanel() {
     field: 'interviewerLine' | 'characterLine',
     value: string
   ) => {
-    setScenes((s) => s.map((sc) => (sc.id === id ? { ...sc, [field]: value } : sc)));
+    setTalkingVideoScenes(scenes.map((sc) => (sc.id === id ? { ...sc, [field]: value } : sc)));
   };
 
   return (
     <div className="px-4 py-3 space-y-3">
       {/* Video Type Toggle */}
       <div className="flex gap-2">
-        {(['interview', 'monologue'] as VideoType[]).map((type) => (
+        {(['interview', 'monologue'] as const).map((type) => (
           <button
             key={type}
-            onClick={() => setVideoType(type)}
+            onClick={() => setTalkingVideo({ videoType: type })}
             className={cn(
               'flex-1 py-2 text-[11px] font-bold rounded-neo-sm border-2 transition-all',
               videoType === type
@@ -131,27 +122,27 @@ export default function TalkingVideoPanel() {
           type="text"
           placeholder={t('talkingVideo.characterPlaceholder')}
           value={characterName}
-          onChange={(e) => setCharacterName(e.target.value)}
+          onChange={(e) => setTalkingVideo({ characterName: e.target.value })}
           className="memphis-input !py-1.5 text-xs"
         />
         <input
           type="text"
           placeholder={t('talkingVideo.clothingPlaceholder')}
           value={clothing}
-          onChange={(e) => setClothing(e.target.value)}
+          onChange={(e) => setTalkingVideo({ clothing: e.target.value })}
           className="memphis-input !py-1.5 text-xs"
         />
         <input
           type="text"
           placeholder={t('talkingVideo.settingPlaceholder')}
           value={setting}
-          onChange={(e) => setSetting(e.target.value)}
+          onChange={(e) => setTalkingVideo({ setting: e.target.value })}
           className="memphis-input !py-1.5 text-xs"
         />
         <div className="flex gap-2">
           <select
             value={cameraAngle}
-            onChange={(e) => setCameraAngle(e.target.value)}
+            onChange={(e) => setTalkingVideo({ cameraAngle: e.target.value })}
             className="memphis-select flex-1"
           >
             <option value="knee">{t('talkingVideo.camera.knee')}</option>
@@ -161,7 +152,7 @@ export default function TalkingVideoPanel() {
           </select>
           <select
             value={language}
-            onChange={(e) => setLanguage(e.target.value)}
+            onChange={(e) => setTalkingVideo({ language: e.target.value })}
             className="memphis-select flex-1"
           >
             <option value="Korean">한국어</option>
@@ -174,7 +165,7 @@ export default function TalkingVideoPanel() {
           type="text"
           placeholder={t('talkingVideo.expressionPlaceholder')}
           value={expression}
-          onChange={(e) => setExpression(e.target.value)}
+          onChange={(e) => setTalkingVideo({ expression: e.target.value })}
           className="memphis-input !py-1.5 text-xs"
         />
         {isInterview && (
@@ -182,7 +173,7 @@ export default function TalkingVideoPanel() {
             type="text"
             placeholder={t('talkingVideo.interviewerPlaceholder')}
             value={interviewerRole}
-            onChange={(e) => setInterviewerRole(e.target.value)}
+            onChange={(e) => setTalkingVideo({ interviewerRole: e.target.value })}
             className="memphis-input !py-1.5 text-xs"
           />
         )}

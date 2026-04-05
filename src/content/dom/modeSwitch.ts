@@ -11,6 +11,7 @@ const MODE_LABELS: Record<GenerationMode, string[]> = {
   'image-to-image': ['이미지', 'Image'],
   'resize': ['이미지', 'Image'], // resize uses image-to-image mode on grok.com
   'talking-video': ['비디오', 'Video'], // talking-video generates frame-to-video prompts
+  'cinematic-intro': ['이미지', 'Image'], // cinematic-intro generates image-to-image prompts first
 };
 
 /**

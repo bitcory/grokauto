@@ -1,4 +1,4 @@
-import type { GenerationMode, PromptItem, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageFrameMode, ResizeRatio } from '../types';
+import type { GenerationMode, PromptItem, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageFrameMode, ImageGenerationSpeed, ResizeRatio } from '../types';
 
 // Popup → Background → Content
 export interface StartAutomationMessage {
@@ -17,6 +17,7 @@ export interface StartAutomationMessage {
     videoDownloadQuality: VideoDownloadQuality;
     imageDownloadQuality: ImageDownloadQuality;
     imageFrameMode: ImageFrameMode;
+    imageGenerationSpeed: ImageGenerationSpeed;
     resizeTargetRatio?: ResizeRatio;
   };
 }

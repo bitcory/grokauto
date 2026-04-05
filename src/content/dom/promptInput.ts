@@ -1,42 +1,163 @@
 import { SELECTORS, querySelector } from './selectors';
 
 /**
- * Type text into grok.com's prompt input field.
- * Uses execCommand('insertText') to properly trigger React state updates.
+ * Re-query and focus the prompt input element.
+ * After image upload the contenteditable may have been re-mounted by React,
+ * so we need to find it again.
  */
-export async function typePrompt(text: string): Promise<boolean> {
-  const input = querySelector(SELECTORS.promptInput) as HTMLElement | null;
-  if (!input) {
-    console.error('[GrokAuto] Prompt input not found');
-    return false;
+async function acquireInput(): Promise<HTMLElement | null> {
+  // Try up to 3 times with short delays (element may be re-mounting)
+  for (let i = 0; i < 3; i++) {
+    const el = querySelector(SELECTORS.promptInput) as HTMLElement | null;
+    if (el) {
+      el.focus();
+      await new Promise((r) => setTimeout(r, 150));
+      // Verify focus actually landed
+      if (document.activeElement === el || el.contains(document.activeElement)) {
+        return el;
+      }
+      // Force focus via click + focus
+      el.click();
+      el.focus();
+      await new Promise((r) => setTimeout(r, 100));
+      if (document.activeElement === el || el.contains(document.activeElement)) {
+        return el;
+      }
+    }
+    await new Promise((r) => setTimeout(r, 300));
   }
+  return querySelector(SELECTORS.promptInput) as HTMLElement | null;
+}
 
-  // Focus the element
-  input.focus();
-  await new Promise((r) => setTimeout(r, 100));
-
-  // Clear existing content
+/**
+ * Clear the contents of a prompt input element.
+ */
+async function clearInput(input: HTMLElement): Promise<void> {
   if (input instanceof HTMLTextAreaElement) {
     input.select();
   } else {
-    // Select all content in contenteditable
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(input);
     selection?.removeAllRanges();
     selection?.addRange(range);
   }
-  // Delete selected content
   document.execCommand('delete', false);
   await new Promise((r) => setTimeout(r, 100));
+}
 
-  // Insert text using execCommand - this triggers React's onChange properly
-  document.execCommand('insertText', false, text);
-  console.log(`[GrokAuto] Typed prompt: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+/**
+ * Check whether text was actually inserted into the element.
+ */
+function hasContent(el: HTMLElement, expected: string): boolean {
+  const content = (el.textContent ?? '').trim();
+  // Consider success if at least the first 10 chars match (or full match for short text)
+  const check = expected.substring(0, 10);
+  return content.length > 0 && content.includes(check);
+}
 
-  // Wait for React state to update
+/**
+ * Fallback 1: Set textContent + dispatch InputEvent to sync React state.
+ */
+async function insertViaInputEvent(input: HTMLElement, text: string): Promise<boolean> {
+  console.log('[GrokAuto] Trying InputEvent fallback');
+  input.focus();
+  await new Promise((r) => setTimeout(r, 100));
+
+  // Set content directly
+  input.textContent = text;
+
+  // Dispatch InputEvent to notify React
+  input.dispatchEvent(
+    new InputEvent('input', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: text,
+    })
+  );
+
+  await new Promise((r) => setTimeout(r, 200));
+  return hasContent(input, text);
+}
+
+/**
+ * Fallback 2: Use clipboard paste via DataTransfer.
+ */
+async function insertViaPaste(input: HTMLElement, text: string): Promise<boolean> {
+  console.log('[GrokAuto] Trying clipboard paste fallback');
+  input.focus();
+  await new Promise((r) => setTimeout(r, 100));
+
+  const dt = new DataTransfer();
+  dt.setData('text/plain', text);
+
+  const pasteEvent = new ClipboardEvent('paste', {
+    bubbles: true,
+    cancelable: true,
+    clipboardData: dt,
+  });
+  input.dispatchEvent(pasteEvent);
+
   await new Promise((r) => setTimeout(r, 300));
-  return true;
+  return hasContent(input, text);
+}
+
+/**
+ * Type text into grok.com's prompt input field.
+ * Uses execCommand('insertText') with multiple fallback strategies
+ * to handle cases where the contenteditable is re-mounted after image upload.
+ */
+export async function typePrompt(text: string): Promise<boolean> {
+  // Acquire (or re-acquire) the input element with focus
+  let input = await acquireInput();
+  if (!input) {
+    console.error('[GrokAuto] Prompt input not found');
+    return false;
+  }
+
+  // Clear existing content
+  await clearInput(input);
+
+  // Strategy 1: execCommand('insertText') — the gold standard for React
+  document.execCommand('insertText', false, text);
+  await new Promise((r) => setTimeout(r, 300));
+
+  if (hasContent(input, text)) {
+    console.log(`[GrokAuto] Typed prompt (execCommand): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+    return true;
+  }
+
+  // Re-acquire input in case it was re-mounted
+  input = await acquireInput();
+  if (!input) {
+    console.error('[GrokAuto] Prompt input lost after execCommand');
+    return false;
+  }
+
+  // Strategy 2: InputEvent-based insertion
+  await clearInput(input);
+  if (await insertViaInputEvent(input, text)) {
+    console.log(`[GrokAuto] Typed prompt (InputEvent): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+    return true;
+  }
+
+  // Re-acquire again
+  input = await acquireInput();
+  if (!input) {
+    console.error('[GrokAuto] Prompt input lost after InputEvent');
+    return false;
+  }
+
+  // Strategy 3: Clipboard paste
+  await clearInput(input);
+  if (await insertViaPaste(input, text)) {
+    console.log(`[GrokAuto] Typed prompt (paste): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+    return true;
+  }
+
+  console.error('[GrokAuto] All text input strategies failed');
+  return false;
 }
 
 /**

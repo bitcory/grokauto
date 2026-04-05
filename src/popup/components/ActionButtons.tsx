@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { useQueueStore } from '../../store/useQueueStore';
 import { Trash2, Play, Square } from 'lucide-react';
-import type { PromptItem, ResizeRatio } from '../../types';
+import type { GenerationMode, PromptItem, ResizeRatio } from '../../types';
 
 function parsePrompts(text: string): string[] {
   return text
@@ -58,7 +58,9 @@ export default function ActionButtons() {
     videoDownloadQuality,
     imageDownloadQuality,
     imageFrameMode,
+    imageGenerationSpeed,
     resizeTargetRatio,
+    cinematicIntro,
   } = useAppStore();
   const { setItems, clearItems } = useQueueStore();
 
@@ -69,6 +71,12 @@ export default function ActionButtons() {
   };
 
   const handleStart = async () => {
+    // cinematic-intro → 실제 grok.com 모드 매핑
+    let effectiveMode: GenerationMode = mode;
+    if (mode === 'cinematic-intro') {
+      effectiveMode = cinematicIntro.generationTarget === 'video' ? 'frame-to-video' : 'image-to-image';
+    }
+
     let prompts = parsePrompts(promptText);
 
     // Resize mode: if no prompt text, create one entry per uploaded image
@@ -78,7 +86,7 @@ export default function ActionButtons() {
 
     if (prompts.length === 0) return;
 
-    const { promptImageModes } = useAppStore.getState();
+    const { promptImageRefModes, promptImageSelections } = useAppStore.getState();
 
     // For resize mode, load the template image
     let templateDataUrl: string | null = null;
@@ -93,7 +101,15 @@ export default function ActionButtons() {
     const items: PromptItem[] = prompts.map((text, i) => {
       let images: string[] | undefined;
 
-      if (mode === 'resize') {
+      if (mode === 'cinematic-intro' && cinematicIntro.generationTarget === 'image') {
+        // 이미지 생성: 레퍼런스 이미지는 공유 키로 별도 저장 (item에 넣지 않음)
+      } else if (mode === 'cinematic-intro' && cinematicIntro.generationTarget === 'video') {
+        // 영상 생성: 이미지 1:1 매칭 (씬 순서대로)
+        const img = uploadedImages[i];
+        if (img) {
+          images = [img];
+        }
+      } else if (mode === 'resize') {
         // Resize mode: [template canvas, user image]
         const userImage = uploadedImages.length === prompts.length
           ? uploadedImages[i]
@@ -107,22 +123,32 @@ export default function ActionButtons() {
           images = [userImage];
         }
       } else if (imageFrameMode === 'start-end') {
-        // start-end mode: pair 2 images per prompt
-        if (uploadedImages.length === prompts.length * 2) {
-          images = [uploadedImages[i * 2], uploadedImages[i * 2 + 1]];
-        } else if (uploadedImages.length === 2) {
-          images = [uploadedImages[0], uploadedImages[1]];
-        } else if (uploadedImages.length > 0) {
-          images = uploadedImages;
+        // start-end mode: prompt i → uploadedImages[i*2], uploadedImages[i*2+1]
+        const startImg = uploadedImages[i * 2];
+        const endImg = uploadedImages[i * 2 + 1];
+        if (startImg && endImg) {
+          images = [startImg, endImg];
+        } else if (startImg) {
+          images = [startImg];
         }
       } else {
-        // start-only mode (existing behavior)
-        if (uploadedImages.length === prompts.length) {
-          images = [uploadedImages[i]];
-        } else if (uploadedImages.length === 1) {
-          images = uploadedImages;
-        } else if (uploadedImages.length > 0) {
-          images = uploadedImages;
+        // start-only mode
+        const refMode = promptImageRefModes[i] ?? (uploadedImages.length <= 1 ? 'all' : 'single');
+        if (refMode === 'all') {
+          images = [...uploadedImages];
+        } else if (refMode === 'select') {
+          const selectedIndices = promptImageSelections[i] ?? [];
+          const selectedImages = selectedIndices
+            .filter((idx) => idx < uploadedImages.length)
+            .map((idx) => uploadedImages[idx]);
+          if (selectedImages.length > 0) {
+            images = selectedImages;
+          }
+        } else {
+          const img = uploadedImages[i];
+          if (img) {
+            images = [img];
+          }
         }
       }
 
@@ -130,7 +156,6 @@ export default function ActionButtons() {
         id: `prompt-${Date.now()}-${i}`,
         text,
         imageDataUrls: images,
-        imageMode: promptImageModes[i] ?? 'new',
         status: 'pending',
         outputCount: outputPerPrompt,
       };
@@ -147,6 +172,11 @@ export default function ActionButtons() {
         await chrome.storage.local.remove(imgKeys);
       }
 
+      // cinematic-intro 이미지 생성: 레퍼런스 이미지를 공유 키 1개로 저장
+      if (mode === 'cinematic-intro' && cinematicIntro.generationTarget === 'image' && uploadedImages.length > 0) {
+        await chrome.storage.local.set({ img_cinematic_ref: uploadedImages });
+      }
+
       // Store image data separately in chrome.storage.local
       for (const item of items) {
         if (item.imageDataUrls && item.imageDataUrls.length > 0) {
@@ -160,7 +190,7 @@ export default function ActionButtons() {
       await chrome.runtime.sendMessage({
         type: 'START_AUTOMATION',
         payload: {
-          mode,
+          mode: effectiveMode,
           prompts: promptsWithoutImages,
           concurrentPrompts,
           delayMin,
@@ -173,6 +203,7 @@ export default function ActionButtons() {
           videoDownloadQuality,
           imageDownloadQuality,
           imageFrameMode,
+          imageGenerationSpeed,
           resizeTargetRatio: mode === 'resize' ? resizeTargetRatio : undefined,
         },
       });

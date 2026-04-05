@@ -3,11 +3,16 @@ import type {
   GenerationMode,
   TabType,
   VideoSettings,
-  PromptImageMode,
   VideoDownloadQuality,
   ImageDownloadQuality,
   ImageFrameMode,
+  ImageRefMode,
+  ImageGenerationSpeed,
   ResizeRatio,
+  TalkingVideoState,
+  TalkingVideoScene,
+  CinematicIntroState,
+  CinematicScene,
 } from '../types';
 
 const DEFAULTS = {
@@ -27,9 +32,9 @@ const DEFAULTS = {
   maxRetries: 5,
   videoDownloadQuality: '480p-upscale' as VideoDownloadQuality,
   imageDownloadQuality: '1k' as ImageDownloadQuality,
-  defaultImageMode: 'new' as PromptImageMode,
   imageFrameMode: 'start-only' as ImageFrameMode,
   resizeTargetRatio: '16:9' as ResizeRatio,
+  imageGenerationSpeed: 'quality' as ImageGenerationSpeed,
 };
 
 interface AppState {
@@ -39,6 +44,7 @@ interface AppState {
 
   // Mode
   mode: GenerationMode;
+  previousMode: GenerationMode | null;
   setMode: (mode: GenerationMode) => void;
 
   // Control
@@ -58,10 +64,15 @@ interface AppState {
   addUploadedImage: (image: string) => void;
   removeUploadedImage: (index: number) => void;
 
-  // Per-prompt image modes
-  promptImageModes: PromptImageMode[];
-  setPromptImageMode: (index: number, mode: PromptImageMode) => void;
-  syncPromptImageModes: (promptCount: number) => void;
+  // Per-prompt image ref modes (all vs single vs select)
+  promptImageRefModes: ImageRefMode[];
+  setPromptImageRefMode: (index: number, mode: ImageRefMode) => void;
+  syncPromptImageRefModes: (count: number, imageCount?: number) => void;
+
+  // Per-prompt image selections (for 'select' ref mode)
+  promptImageSelections: number[][];
+  togglePromptImageSelection: (promptIndex: number, imageIndex: number) => void;
+  syncPromptImageSelections: (promptCount: number) => void;
 
   // Output
   outputPerPrompt: number;
@@ -80,16 +91,26 @@ interface AppState {
   setVideoDownloadQuality: (q: VideoDownloadQuality) => void;
   imageDownloadQuality: ImageDownloadQuality;
   setImageDownloadQuality: (q: ImageDownloadQuality) => void;
-  defaultImageMode: PromptImageMode;
-  setDefaultImageMode: (m: PromptImageMode) => void;
   imageFrameMode: ImageFrameMode;
   setImageFrameMode: (m: ImageFrameMode) => void;
   resizeTargetRatio: ResizeRatio;
   setResizeTargetRatio: (r: ResizeRatio) => void;
+  imageGenerationSpeed: ImageGenerationSpeed;
+  setImageGenerationSpeed: (s: ImageGenerationSpeed) => void;
 
   // Language
   language: 'ko' | 'en';
   setLanguage: (lang: 'ko' | 'en') => void;
+
+  // Talking Video
+  talkingVideo: TalkingVideoState;
+  setTalkingVideo: (patch: Partial<TalkingVideoState>) => void;
+  setTalkingVideoScenes: (scenes: TalkingVideoScene[]) => void;
+
+  // Cinematic Intro
+  cinematicIntro: CinematicIntroState;
+  setCinematicIntroJson: (text: string) => void;
+  setCinematicGenTarget: (target: 'image' | 'video') => void;
 
   // Running state
   isRunning: boolean;
@@ -108,16 +129,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   mode: DEFAULTS.mode,
+  previousMode: null,
   setMode: (mode) => {
+    const currentMode = get().mode;
     const isVideo = mode === 'text-to-video' || mode === 'frame-to-video' || mode === 'remix-video' || mode === 'talking-video';
     const isResize = mode === 'resize';
-    const defaultDelay = isVideo ? 15 : isResize ? 10 : 5;
-    const needsImage = mode === 'image-to-image' || mode === 'frame-to-video' || mode === 'remix-video' || isResize || mode === 'talking-video';
+    const isCinematic = mode === 'cinematic-intro';
+    const defaultDelay = isVideo ? 15 : isResize ? 10 : isCinematic ? 8 : 5;
+    const needsImage = mode === 'image-to-image' || mode === 'frame-to-video' || mode === 'remix-video' || isResize || mode === 'talking-video' || mode === 'cinematic-intro';
     set({
       mode,
+      previousMode: currentMode !== mode ? currentMode : get().previousMode,
       delayMin: defaultDelay,
       delayMax: defaultDelay,
-      ...(needsImage ? {} : { uploadedImages: [], promptImageModes: [] }),
+      ...(needsImage ? {} : { uploadedImages: [], promptImageRefModes: [], promptImageSelections: [] }),
     });
     get().saveToStorage();
   },
@@ -147,19 +172,41 @@ export const useAppStore = create<AppState>((set, get) => ({
       uploadedImages: s.uploadedImages.filter((_, i) => i !== index),
     })),
 
-  promptImageModes: [],
-  setPromptImageMode: (index, mode) =>
+  promptImageRefModes: [],
+  setPromptImageRefMode: (index, mode) =>
     set((s) => {
-      const modes = [...s.promptImageModes];
+      const modes = [...s.promptImageRefModes];
       modes[index] = mode;
-      return { promptImageModes: modes };
+      return { promptImageRefModes: modes };
     }),
-  syncPromptImageModes: (promptCount) =>
+  syncPromptImageRefModes: (count, imageCount = 0) =>
     set((s) => {
-      const modes = [...s.promptImageModes];
-      const defaultMode = get().defaultImageMode;
-      while (modes.length < promptCount) modes.push(defaultMode);
-      return { promptImageModes: modes.slice(0, promptCount) };
+      const defaultMode: ImageRefMode = imageCount <= 1 ? 'all' : 'single';
+      const modes = [...s.promptImageRefModes];
+      while (modes.length < count) modes.push(defaultMode);
+      return { promptImageRefModes: modes.slice(0, count) };
+    }),
+
+  promptImageSelections: [],
+  togglePromptImageSelection: (promptIndex, imageIndex) =>
+    set((s) => {
+      const selections = [...s.promptImageSelections];
+      while (selections.length <= promptIndex) selections.push([]);
+      const current = [...selections[promptIndex]];
+      const idx = current.indexOf(imageIndex);
+      if (idx >= 0) {
+        current.splice(idx, 1);
+      } else {
+        current.push(imageIndex);
+      }
+      selections[promptIndex] = current;
+      return { promptImageSelections: selections };
+    }),
+  syncPromptImageSelections: (promptCount) =>
+    set((s) => {
+      const selections = [...s.promptImageSelections];
+      while (selections.length < promptCount) selections.push([]);
+      return { promptImageSelections: selections.slice(0, promptCount) };
     }),
 
   outputPerPrompt: DEFAULTS.outputPerPrompt,
@@ -206,12 +253,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage();
   },
 
-  defaultImageMode: DEFAULTS.defaultImageMode,
-  setDefaultImageMode: (m) => {
-    set({ defaultImageMode: m });
-    get().saveToStorage();
-  },
-
   imageFrameMode: DEFAULTS.imageFrameMode,
   setImageFrameMode: (m) => {
     set({ imageFrameMode: m });
@@ -224,10 +265,79 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage();
   },
 
+  imageGenerationSpeed: DEFAULTS.imageGenerationSpeed,
+  setImageGenerationSpeed: (s) => {
+    set({ imageGenerationSpeed: s });
+    get().saveToStorage();
+  },
+
   language: DEFAULTS.language,
   setLanguage: (lang) => {
     set({ language: lang });
     get().saveToStorage();
+  },
+
+  talkingVideo: {
+    videoType: 'interview',
+    characterName: '',
+    clothing: '',
+    setting: '',
+    cameraAngle: 'knee',
+    expression: 'bright, innocent smile',
+    language: 'Korean',
+    interviewerRole: '20s woman Interviewer',
+    scenes: [{ id: '1', interviewerLine: '', characterLine: '' }],
+  },
+  setTalkingVideo: (patch) =>
+    set((s) => ({ talkingVideo: { ...s.talkingVideo, ...patch } })),
+  setTalkingVideoScenes: (scenes) =>
+    set((s) => ({ talkingVideo: { ...s.talkingVideo, scenes } })),
+
+  cinematicIntro: { jsonText: '', parsedScenes: [], parseError: null, generationTarget: 'image' },
+  setCinematicIntroJson: (text) => {
+    const prev = get().cinematicIntro;
+    if (!text.trim()) {
+      set({ cinematicIntro: { ...prev, jsonText: text, parsedScenes: [], parseError: null } });
+      return;
+    }
+    try {
+      const json = JSON.parse(text);
+      const scenes: CinematicScene[] = (json.opening_sequence?.scenes ?? json.scenes ?? []).map((s: any) => ({
+        sceneNumber: s.scene_number ?? 0,
+        title: s.title ?? '',
+        type: s.type ?? '',
+        imagePrompt: s.prompts?.image?.prompt ?? '',
+        videoPrompt: s.prompts?.video?.prompt ?? undefined,
+        videoDuration: s.prompts?.video?.duration ?? undefined,
+      }));
+      // JSON meta.aspect_ratio → videoSettings.aspectRatio 자동 반영
+      const meta = json.opening_sequence?.meta ?? json.meta;
+      const ratio = meta?.aspect_ratio;
+      const validRatios = ['2:3', '3:2', '1:1', '9:16', '16:9'];
+      if (ratio && validRatios.includes(ratio)) {
+        const vs = { ...get().videoSettings, aspectRatio: ratio as VideoSettings['aspectRatio'] };
+        set({ cinematicIntro: { ...prev, jsonText: text, parsedScenes: scenes, parseError: null }, videoSettings: vs });
+        setTimeout(() => get().saveToStorage(), 0);
+      } else {
+        set({ cinematicIntro: { ...prev, jsonText: text, parsedScenes: scenes, parseError: null } });
+      }
+    } catch (e: any) {
+      set({ cinematicIntro: { ...prev, jsonText: text, parsedScenes: [], parseError: e.message ?? 'Invalid JSON' } });
+    }
+  },
+  setCinematicGenTarget: (target) => {
+    const prev = get().cinematicIntro;
+    set({ cinematicIntro: { ...prev, generationTarget: target } });
+
+    // 탭 전환 시 프롬프트 + 딜레이 자동 세팅
+    const scenes = prev.parsedScenes;
+    if (target === 'image') {
+      const prompts = scenes.filter((s) => s.imagePrompt).map((s) => s.imagePrompt);
+      set({ promptText: prompts.join('\n\n'), delayMin: 8, delayMax: 8 });
+    } else {
+      const prompts = scenes.filter((s) => s.videoPrompt).map((s) => s.videoPrompt!);
+      set({ promptText: prompts.join('\n\n'), delayMin: 20, delayMax: 20 });
+    }
   },
 
   isRunning: false,
@@ -246,9 +356,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       maxRetries: DEFAULTS.maxRetries,
       videoDownloadQuality: DEFAULTS.videoDownloadQuality,
       imageDownloadQuality: DEFAULTS.imageDownloadQuality,
-      defaultImageMode: DEFAULTS.defaultImageMode,
       imageFrameMode: DEFAULTS.imageFrameMode,
       resizeTargetRatio: DEFAULTS.resizeTargetRatio,
+      imageGenerationSpeed: DEFAULTS.imageGenerationSpeed,
     });
     get().saveToStorage();
   },
@@ -271,9 +381,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           maxRetries: data.maxRetries ?? DEFAULTS.maxRetries,
           videoDownloadQuality: data.videoDownloadQuality ?? DEFAULTS.videoDownloadQuality,
           imageDownloadQuality: data.imageDownloadQuality ?? DEFAULTS.imageDownloadQuality,
-          defaultImageMode: data.defaultImageMode ?? DEFAULTS.defaultImageMode,
           imageFrameMode: data.imageFrameMode ?? DEFAULTS.imageFrameMode,
           resizeTargetRatio: data.resizeTargetRatio ?? DEFAULTS.resizeTargetRatio,
+          imageGenerationSpeed: data.imageGenerationSpeed ?? DEFAULTS.imageGenerationSpeed,
         });
       }
     } catch {
@@ -298,9 +408,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           maxRetries: s.maxRetries,
           videoDownloadQuality: s.videoDownloadQuality,
           imageDownloadQuality: s.imageDownloadQuality,
-          defaultImageMode: s.defaultImageMode,
           imageFrameMode: s.imageFrameMode,
           resizeTargetRatio: s.resizeTargetRatio,
+          imageGenerationSpeed: s.imageGenerationSpeed,
         },
       });
     } catch {
