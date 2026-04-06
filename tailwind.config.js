@@ -6,6 +6,7 @@ export default {
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
+        surface: 'var(--surface)',
         primary: {
           DEFAULT: 'var(--primary)',
           foreground: 'var(--primary-foreground)',
@@ -36,14 +37,14 @@ export default {
         'neo-sm': '8px',
       },
       boxShadow: {
-        'neo-sm': '2px 2px 0px 0px var(--foreground)',
-        'neo-md': '3px 3px 0px 0px var(--foreground)',
-        'neo-lg': '4px 4px 0px 0px var(--foreground)',
-        'neo-sm-primary': '2px 2px 0px 0px var(--primary)',
-        'neo-md-primary': '3px 3px 0px 0px var(--primary)',
+        'neo-sm': '0 1px 3px rgba(30,32,48,0.05), 0 4px 12px rgba(30,32,48,0.06)',
+        'neo-md': '0 2px 8px rgba(30,32,48,0.07), 0 8px 24px rgba(30,32,48,0.08)',
+        'neo-lg': '0 4px 16px rgba(30,32,48,0.09), 0 16px 40px rgba(30,32,48,0.10)',
+        'neo-sm-primary': '0 4px 12px rgba(99,102,241,0.35)',
+        'neo-md-primary': '0 6px 18px rgba(99,102,241,0.45)',
       },
       fontFamily: {
-        sans: ['Inter', 'Noto Sans KR', 'system-ui', 'sans-serif'],
+        sans: ['Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         'card-enter': {

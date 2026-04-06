@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { useQueueStore } from '../../store/useQueueStore';
-import { Trash2, Play, Square } from 'lucide-react';
+import { Icon } from '@iconify/react';
 import type { GenerationMode, PromptItem, ResizeRatio } from '../../types';
 
 function parsePrompts(text: string): string[] {
@@ -71,7 +71,6 @@ export default function ActionButtons() {
   };
 
   const handleStart = async () => {
-    // cinematic-intro → 실제 grok.com 모드 매핑
     let effectiveMode: GenerationMode = mode;
     if (mode === 'cinematic-intro') {
       effectiveMode = cinematicIntro.generationTarget === 'video' ? 'frame-to-video' : 'image-to-image';
@@ -79,7 +78,6 @@ export default function ActionButtons() {
 
     let prompts = parsePrompts(promptText);
 
-    // Resize mode: if no prompt text, create one entry per uploaded image
     if (prompts.length === 0 && mode === 'resize' && uploadedImages.length > 0) {
       prompts = uploadedImages.map(() => '');
     }
@@ -88,7 +86,6 @@ export default function ActionButtons() {
 
     const { promptImageRefModes, promptImageSelections } = useAppStore.getState();
 
-    // For resize mode, load the template image
     let templateDataUrl: string | null = null;
     if (mode === 'resize') {
       try {
@@ -102,15 +99,13 @@ export default function ActionButtons() {
       let images: string[] | undefined;
 
       if (mode === 'cinematic-intro' && cinematicIntro.generationTarget === 'image') {
-        // 이미지 생성: 레퍼런스 이미지는 공유 키로 별도 저장 (item에 넣지 않음)
+        // 이미지 생성: 레퍼런스 이미지는 공유 키로 별도 저장
       } else if (mode === 'cinematic-intro' && cinematicIntro.generationTarget === 'video') {
-        // 영상 생성: 이미지 1:1 매칭 (씬 순서대로)
         const img = uploadedImages[i];
         if (img) {
           images = [img];
         }
       } else if (mode === 'resize') {
-        // Resize mode: [template canvas, user image]
         const userImage = uploadedImages.length === prompts.length
           ? uploadedImages[i]
           : uploadedImages.length === 1
@@ -123,7 +118,6 @@ export default function ActionButtons() {
           images = [userImage];
         }
       } else if (imageFrameMode === 'start-end') {
-        // start-end mode: prompt i → uploadedImages[i*2], uploadedImages[i*2+1]
         const startImg = uploadedImages[i * 2];
         const endImg = uploadedImages[i * 2 + 1];
         if (startImg && endImg) {
@@ -132,7 +126,6 @@ export default function ActionButtons() {
           images = [startImg];
         }
       } else {
-        // start-only mode
         const refMode = promptImageRefModes[i] ?? (uploadedImages.length <= 1 ? 'all' : 'single');
         if (refMode === 'all') {
           images = [...uploadedImages];
@@ -165,26 +158,22 @@ export default function ActionButtons() {
     setIsRunning(true);
 
     try {
-      // Clean up any leftover image data from previous runs
       const allKeys = await chrome.storage.local.get(null);
       const imgKeys = Object.keys(allKeys).filter((k) => k.startsWith('img_'));
       if (imgKeys.length > 0) {
         await chrome.storage.local.remove(imgKeys);
       }
 
-      // cinematic-intro 이미지 생성: 레퍼런스 이미지를 공유 키 1개로 저장
       if (mode === 'cinematic-intro' && cinematicIntro.generationTarget === 'image' && uploadedImages.length > 0) {
         await chrome.storage.local.set({ img_cinematic_ref: uploadedImages });
       }
 
-      // Store image data separately in chrome.storage.local
       for (const item of items) {
         if (item.imageDataUrls && item.imageDataUrls.length > 0) {
           await chrome.storage.local.set({ [`img_${item.id}`]: item.imageDataUrls });
         }
       }
 
-      // Send message without image data
       const promptsWithoutImages = items.map(({ imageDataUrls, ...rest }) => rest);
 
       await chrome.runtime.sendMessage({
@@ -223,29 +212,29 @@ export default function ActionButtons() {
   };
 
   return (
-    <div className="px-4 py-3 flex gap-2 border-t-3 border-foreground bg-background">
+    <div className="px-4 py-3 flex gap-2 border-t border-border bg-white shadow-[0_-1px_8px_rgba(30,32,48,0.05)]">
       <button
         onClick={handleClear}
         disabled={isRunning}
-        className="neo-btn flex-1 py-2.5 gap-1.5 bg-white text-foreground"
+        className="neo-btn flex-1 py-2.5 gap-1.5 bg-muted text-foreground border-border hover:bg-content2"
       >
-        <Trash2 className="w-3.5 h-3.5" />
+        <Icon icon="solar:trash-bin-minimalistic-bold" width={14} height={14} />
         {t('actions.clear')}
       </button>
       {isRunning ? (
         <button
           onClick={handleStop}
-          className="neo-btn flex-1 py-2.5 gap-1.5 bg-danger text-white border-foreground"
+          className="neo-btn flex-1 py-2.5 gap-1.5 bg-danger text-white border-transparent shadow-[0_4px_12px_rgba(239,68,68,0.35)]"
         >
-          <Square className="w-3.5 h-3.5" />
+          <Icon icon="solar:stop-bold" width={14} height={14} />
           {t('actions.stop')}
         </button>
       ) : (
         <button
           onClick={handleStart}
-          className="neo-btn flex-1 py-2.5 gap-1.5 bg-primary text-primary-foreground border-foreground"
+          className="neo-btn flex-1 py-2.5 gap-1.5 bg-primary text-white border-transparent shadow-neo-sm-primary"
         >
-          <Play className="w-3.5 h-3.5" />
+          <Icon icon="solar:play-bold" width={14} height={14} />
           {t('actions.start')}
         </button>
       )}

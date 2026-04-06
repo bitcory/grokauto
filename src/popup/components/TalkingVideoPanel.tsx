@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { Plus, Trash2, ImageIcon, Video } from 'lucide-react';
+import { Icon } from '@iconify/react';
 import { cn } from '../../utils/cn';
 
 export default function TalkingVideoPanel() {
@@ -102,10 +102,10 @@ export default function TalkingVideoPanel() {
             key={type}
             onClick={() => setTalkingVideo({ videoType: type })}
             className={cn(
-              'flex-1 py-2 text-[11px] font-bold rounded-neo-sm border-2 transition-all',
+              'flex-1 py-2 text-[11px] font-semibold rounded-lg border transition-all duration-200',
               videoType === type
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-white text-foreground border-foreground hover:bg-muted'
+                ? 'bg-primary text-white border-primary shadow-[0_2px_8px_rgba(99,102,241,0.3)]'
+                : 'bg-white text-foreground border-border hover:bg-muted'
             )}
           >
             {t(`talkingVideo.type.${type}`)}
@@ -115,7 +115,7 @@ export default function TalkingVideoPanel() {
 
       {/* Character Info */}
       <div className="space-y-1.5">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
           {t('talkingVideo.characterInfo')}
         </label>
         <input
@@ -182,14 +182,14 @@ export default function TalkingVideoPanel() {
       {/* Scenes */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             {t('talkingVideo.scenes', { count: scenes.length })}
           </label>
           <button
             onClick={addScene}
-            className="neo-btn px-2 py-1 text-[10px] gap-1 bg-white text-foreground"
+            className="neo-btn px-2 py-1 text-[10px] gap-1 bg-white text-foreground border border-border hover:bg-muted"
           >
-            <Plus className="w-3 h-3" />
+            <Icon icon="solar:add-circle-bold" width={12} height={12} />
             {t('talkingVideo.addScene')}
           </button>
         </div>
@@ -197,18 +197,18 @@ export default function TalkingVideoPanel() {
         {scenes.map((scene, idx) => (
           <div
             key={scene.id}
-            className="border-2 border-foreground rounded-neo-sm p-2 space-y-1.5 bg-white"
+            className="border border-border rounded-xl p-2 space-y-1.5 bg-white shadow-sm"
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-muted-foreground">
+              <span className="text-[10px] font-semibold text-muted-foreground">
                 {t('talkingVideo.scene')} {idx + 1}
               </span>
               {scenes.length > 1 && (
                 <button
                   onClick={() => removeScene(scene.id)}
-                  className="text-[--danger] hover:opacity-70 transition-opacity"
+                  className="text-danger hover:opacity-70 transition-opacity"
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Icon icon="solar:trash-bin-minimalistic-bold" width={12} height={12} />
                 </button>
               )}
             </div>
@@ -236,16 +236,16 @@ export default function TalkingVideoPanel() {
       <div className="flex gap-2">
         <button
           onClick={generateImagePrompt}
-          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-secondary/20 text-foreground border-foreground"
+          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-secondary/10 text-secondary border border-secondary/30"
         >
-          <ImageIcon className="w-3.5 h-3.5" />
+          <Icon icon="solar:gallery-bold" width={14} height={14} />
           {t('talkingVideo.genImage')}
         </button>
         <button
           onClick={generateVideoPrompts}
-          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-primary/10 text-primary border-primary"
+          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-primary/10 text-primary border border-primary/30"
         >
-          <Video className="w-3.5 h-3.5" />
+          <Icon icon="solar:videocamera-record-bold" width={14} height={14} />
           {t('talkingVideo.genVideo')}
         </button>
       </div>

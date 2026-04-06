@@ -1,25 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #FFF9EB;
-  --foreground: #1C1C1C;
-  --primary: #03C75A;
+  --background: #EEF0F8;
+  --foreground: #1E2030;
+  --surface: #FFFFFF;
+  --primary: #6366F1;
   --primary-foreground: #FFFFFF;
-  --secondary: #FFD43B;
-  --secondary-foreground: #1C1C1C;
-  --accent: #FF6B6B;
-  --accent-foreground: #FFFFFF;
-  --muted: #F5F0E1;
-  --muted-foreground: #6B6B6B;
-  --content2: #F0EBD8;
-  --danger: #FF4757;
-  --warning: #FFA502;
-  --success: #03C75A;
-  --border: #1C1C1C;
+  --secondary: #7C3AED;
+  --secondary-foreground: #FFFFFF;
+  --accent: #F59E0B;
+  --accent-foreground: #1E2030;
+  --muted: #F3F4F9;
+  --muted-foreground: #64748B;
+  --content2: #E8EBF5;
+  --danger: #EF4444;
+  --warning: #F59E0B;
+  --success: #10B981;
+  --border: #DDE1EF;
 }
 
 * {
@@ -29,83 +31,91 @@
 }
 
 body {
-  font-family: 'Inter', 'Noto Sans KR', system-ui, sans-serif;
+  font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
   background-color: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
 }
 
-/* ─── Neo-Brutalism Card ─── */
+/* ─── Premium Card ─── */
 @layer components {
   .neo-card {
-    @apply bg-white border-3 border-foreground rounded-neo shadow-neo-sm;
+    @apply bg-white rounded-xl;
+    border: 1px solid rgba(221, 225, 239, 0.8);
+    box-shadow:
+      0 1px 3px rgba(30, 32, 48, 0.04),
+      0 4px 12px rgba(30, 32, 48, 0.05);
   }
 
   .neo-card-hover {
-    @apply neo-card transition-all duration-150;
+    @apply neo-card transition-all duration-200;
   }
   .neo-card-hover:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0px 0px var(--foreground);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(30, 32, 48, 0.08);
   }
   .neo-card-hover:active {
-    transform: translate(1px, 1px);
-    box-shadow: none;
+    transform: translateY(0);
   }
 
-  /* ─── Memphis Input ─── */
+  /* ─── Premium Input ─── */
   .memphis-input {
-    @apply w-full bg-white border-3 border-foreground rounded-neo-sm px-3 py-2
+    @apply w-full bg-white rounded-lg px-3 py-2
            text-sm text-foreground placeholder:text-muted-foreground
-           outline-none transition-shadow duration-150;
+           outline-none transition-all duration-200;
+    border: 1px solid var(--border);
   }
   .memphis-input:focus {
-    box-shadow: 3px 3px 0px 0px var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
   }
 
-  /* ─── Memphis Select ─── */
+  /* ─── Premium Select ─── */
   .memphis-select {
-    @apply bg-white border-3 border-foreground rounded-neo-sm px-2 py-1.5
-           text-xs text-foreground outline-none transition-shadow duration-150
+    @apply bg-white rounded-lg px-2 py-1.5
+           text-xs text-foreground outline-none transition-all duration-200
            cursor-pointer appearance-none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231C1C1C' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    border: 1px solid var(--border);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 8px center;
     padding-right: 28px;
   }
   .memphis-select:focus {
-    box-shadow: 3px 3px 0px 0px var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
   }
 
-  /* ─── Memphis Badge ─── */
+  /* ─── Premium Badge ─── */
   .memphis-badge {
-    @apply inline-flex items-center px-2 py-0.5 text-[10px] font-bold
-           uppercase tracking-wider border-2 border-foreground rounded-full;
+    @apply inline-flex items-center px-2 py-0.5 text-[10px] font-semibold
+           rounded-full border;
   }
 
-  /* ─── Neo Button ─── */
+  /* ─── Premium Button ─── */
   .neo-btn {
-    @apply inline-flex items-center justify-center font-bold text-xs
-           border-3 border-foreground rounded-neo-sm shadow-neo-sm
-           transition-all duration-150 cursor-pointer;
+    @apply inline-flex items-center justify-center font-semibold text-xs
+           rounded-lg border transition-all duration-200 cursor-pointer;
   }
   .neo-btn:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 3px 3px 0px 0px var(--foreground);
+    transform: translateY(-1px);
+    filter: brightness(1.04);
   }
   .neo-btn:active {
-    transform: translate(1px, 1px);
-    box-shadow: none;
+    transform: translateY(0);
+    filter: none;
   }
   .neo-btn:disabled {
     @apply opacity-50 cursor-not-allowed;
     transform: none;
-    box-shadow: 2px 2px 0px 0px var(--foreground);
+    filter: none;
   }
 
-  /* ─── Glass Card (subtle variant) ─── */
+  /* ─── Glass Card ─── */
   .glass-card {
-    @apply bg-white/60 backdrop-blur-sm border-2 border-foreground/20 rounded-neo;
+    @apply bg-white/80 backdrop-blur-sm rounded-xl;
+    border: 1px solid rgba(221, 225, 239, 0.5);
   }
 }
 
@@ -138,36 +148,34 @@ body {
   100% { opacity: 1; transform: scale(1); }
 }
 
-/* ─── Scrollbar (Light Theme) ─── */
+/* ─── Scrollbar ─── */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--muted);
-  border-radius: 3px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
-  border-radius: 3px;
-  border: 1px solid var(--muted);
+  background: var(--border);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--foreground);
+  background: var(--muted-foreground);
 }
 
 /* ─── Focus Visible ─── */
 *:focus-visible {
-  outline: 3px solid var(--primary);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
 /* ─── Selection ─── */
 ::selection {
-  background-color: var(--primary);
-  color: var(--primary-foreground);
+  background-color: rgba(99, 102, 241, 0.18);
+  color: var(--foreground);
 }
 
 /* ─── Checkbox accent ─── */

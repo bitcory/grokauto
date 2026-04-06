@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { Upload } from 'lucide-react';
+import { Icon } from '@iconify/react';
 
 function countPrompts(text: string): number {
   if (!text.trim()) return 0;
@@ -34,16 +34,16 @@ export default function PromptInput() {
   return (
     <div className="px-4 py-2">
       <div className="flex items-center justify-between mb-1">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {t('prompt.label')}
         </label>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => fileRef.current?.click()}
-            className="neo-btn px-2 py-1 text-[10px] gap-1 bg-white text-foreground"
+            className="neo-btn px-2 py-1 text-[10px] gap-1 bg-white text-foreground border border-border hover:bg-muted"
           >
             {t('prompt.loadTxt')}
-            <Upload className="w-3 h-3" />
+            <Icon icon="solar:file-text-bold" width={12} height={12} />
           </button>
           <input
             ref={fileRef}
@@ -53,7 +53,7 @@ export default function PromptInput() {
             onChange={handleTxtUpload}
           />
           {count > 0 && (
-            <span className="memphis-badge bg-primary/10 text-primary border-primary">
+            <span className="memphis-badge bg-primary/10 text-primary border-primary/20">
               {t('prompt.count', { count })}
             </span>
           )}

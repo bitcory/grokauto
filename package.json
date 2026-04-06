@@ -1,6 +1,6 @@
 {
   "name": "grokauto",
-  "version": "1.6.0",
+  "version": "1.7.1",
   "description": "Grok Automation - Batch image/video generation on grok.com",
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@iconify/react": "^6.0.2",
     "clsx": "^2.1.1",
     "i18next": "^23.16.4",
     "lucide-react": "^0.577.0",

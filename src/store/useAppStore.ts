@@ -63,6 +63,7 @@ interface AppState {
   setUploadedImages: (images: string[]) => void;
   addUploadedImage: (image: string) => void;
   removeUploadedImage: (index: number) => void;
+  reorderUploadedImages: (fromIndex: number, toIndex: number) => void;
 
   // Per-prompt image ref modes (all vs single vs select)
   promptImageRefModes: ImageRefMode[];
@@ -171,6 +172,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({
       uploadedImages: s.uploadedImages.filter((_, i) => i !== index),
     })),
+  reorderUploadedImages: (fromIndex, toIndex) =>
+    set((s) => {
+      const images = [...s.uploadedImages];
+      const [moved] = images.splice(fromIndex, 1);
+      images.splice(toIndex, 0, moved);
+      return { uploadedImages: images };
+    }),
 
   promptImageRefModes: [],
   setPromptImageRefMode: (index, mode) =>

@@ -1,7 +1,7 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { Upload, X } from 'lucide-react';
+import { Icon } from '@iconify/react';
 import type { ImageFrameMode } from '../../types';
 
 /**
@@ -16,9 +16,12 @@ function extractFileNumber(filename: string): number {
 
 export default function ImageUpload() {
   const { t } = useTranslation();
-  const { mode, uploadedImages, addUploadedImage, removeUploadedImage, imageFrameMode, setImageFrameMode } =
+  const { mode, uploadedImages, addUploadedImage, removeUploadedImage, reorderUploadedImages, imageFrameMode, setImageFrameMode } =
     useAppStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const needsImage =
     mode === 'frame-to-video' ||
@@ -32,14 +35,12 @@ export default function ImageUpload() {
       const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
       if (imageFiles.length === 0) return;
 
-      // Sort by number extracted from filename (e.g., "X7GWaa8x_3.png" → 3)
       imageFiles.sort((a, b) => {
         const numA = extractFileNumber(a.name);
         const numB = extractFileNumber(b.name);
         return numA - numB;
       });
 
-      // Read all files in sorted order, then add them sequentially
       const promises = imageFiles.map(
         (file) =>
           new Promise<string | null>((resolve) => {
@@ -71,7 +72,7 @@ export default function ImageUpload() {
 
   return (
     <div className="px-4 py-2">
-      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
+      <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">
         {t('image.upload')}
       </label>
 
@@ -79,10 +80,10 @@ export default function ImageUpload() {
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => fileInputRef.current?.click()}
-        className="border-3 border-dashed border-foreground rounded-neo p-4 text-center cursor-pointer
-                   hover:border-primary hover:bg-primary/5 transition-all duration-150"
+        className="border-2 border-dashed border-border rounded-xl p-4 text-center cursor-pointer
+                   hover:border-primary hover:bg-primary/5 transition-all duration-200"
       >
-        <Upload className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+        <Icon icon="solar:upload-bold" width={20} height={20} className="mx-auto mb-1 text-muted-foreground" />
         <p className="text-[10px] text-muted-foreground font-medium">{t('image.dragDrop')}</p>
         <input
           ref={fileInputRef}
@@ -96,7 +97,7 @@ export default function ImageUpload() {
 
       {mode === 'frame-to-video' && (
         <div className="mt-2">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">
             {t('image.frameMode')}
           </label>
           <select
@@ -112,30 +113,70 @@ export default function ImageUpload() {
 
       {uploadedImages.length > 0 && (
         <div className="flex gap-1.5 mt-2 flex-wrap">
-          {uploadedImages.map((img, idx) => (
-            <div key={idx} className="relative group">
-              <img
-                src={img}
-                alt=""
-                className="w-12 h-12 object-cover rounded-neo-sm border-2 border-foreground"
-              />
-              {mode === 'frame-to-video' && imageFrameMode === 'start-end' && uploadedImages.length >= 2 && (
-                <span className="absolute bottom-0 left-0 right-0 text-[7px] font-bold text-center bg-foreground/80 text-white rounded-b-sm">
-                  {idx % 2 === 0 ? t('image.startLabel') : t('image.endLabel')}
-                </span>
-              )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeUploadedImage(idx);
+          {uploadedImages.map((img, idx) => {
+            const isDragging = dragIndex === idx;
+            const isOver = dragOverIndex === idx && dragIndex !== idx;
+            return (
+              <div
+                key={idx}
+                className={[
+                  'relative group cursor-grab active:cursor-grabbing',
+                  'transition-all duration-150',
+                  isDragging
+                    ? 'opacity-50 scale-95 rotate-3 ring-2 ring-purple-500 ring-offset-1 rounded-lg z-10'
+                    : 'opacity-100 scale-100 rotate-0',
+                  isOver
+                    ? 'ring-2 ring-purple-400 ring-offset-1 rounded-lg scale-110 -translate-y-1 shadow-lg shadow-purple-500/30'
+                    : '',
+                ].join(' ')}
+                draggable
+                onDragStart={() => {
+                  dragIndexRef.current = idx;
+                  setDragIndex(idx);
                 }}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-danger text-white border-2 border-foreground rounded-full
-                           flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                onDragOver={(e) => { e.preventDefault(); setDragOverIndex(idx); }}
+                onDragLeave={() => setDragOverIndex(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragIndexRef.current !== null && dragIndexRef.current !== idx) {
+                    reorderUploadedImages(dragIndexRef.current, idx);
+                  }
+                  dragIndexRef.current = null;
+                  setDragIndex(null);
+                  setDragOverIndex(null);
+                }}
+                onDragEnd={() => {
+                  dragIndexRef.current = null;
+                  setDragIndex(null);
+                  setDragOverIndex(null);
+                }}
               >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
+                <img
+                  src={img}
+                  alt=""
+                  className={[
+                    'w-12 h-12 object-cover rounded-lg border',
+                    isOver ? 'border-purple-400' : 'border-border',
+                  ].join(' ')}
+                />
+                {mode === 'frame-to-video' && imageFrameMode === 'start-end' && uploadedImages.length >= 2 && (
+                  <span className="absolute bottom-0 left-0 right-0 text-[7px] font-bold text-center bg-foreground/70 text-white rounded-b-lg">
+                    {idx % 2 === 0 ? t('image.startLabel') : t('image.endLabel')}
+                  </span>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeUploadedImage(idx);
+                  }}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-danger text-white rounded-full
+                             flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                >
+                  <Icon icon="solar:close-circle-bold" width={12} height={12} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

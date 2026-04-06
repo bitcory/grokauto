@@ -13,16 +13,16 @@ export default function TabNav() {
   ];
 
   return (
-    <div className="flex gap-2 px-4 py-2 bg-background border-b-3 border-foreground">
+    <div className="flex gap-2 px-4 py-2 bg-white border-b border-border">
       {tabs.map((tab) => (
         <button
           key={tab.key}
           onClick={() => setActiveTab(tab.key)}
           className={cn(
-            'flex-1 py-2 text-xs font-bold rounded-neo-sm border-3 border-foreground transition-all duration-150',
+            'flex-1 py-2 text-xs font-semibold rounded-lg border transition-all duration-200',
             activeTab === tab.key
-              ? 'bg-primary text-primary-foreground shadow-neo-sm'
-              : 'bg-white text-foreground hover:bg-content2 hover:-translate-y-px hover:shadow-neo-sm active:translate-y-px active:shadow-none'
+              ? 'bg-primary text-white border-primary shadow-neo-sm-primary'
+              : 'bg-white text-muted-foreground border-border hover:bg-muted hover:text-foreground hover:-translate-y-px'
           )}
         >
           {tab.label}

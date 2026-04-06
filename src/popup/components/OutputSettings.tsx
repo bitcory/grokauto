@@ -14,7 +14,7 @@ export default function OutputSettings() {
 
   return (
     <div className="px-4 py-2 space-y-2">
-      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+      <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
         {t('output.label')}
       </label>
 
@@ -48,7 +48,7 @@ export default function OutputSettings() {
           type="checkbox"
           checked={autoRename}
           onChange={(e) => setAutoRename(e.target.checked)}
-          className="w-4 h-4 rounded border-2 border-foreground"
+          className="w-4 h-4 rounded-md border border-border"
         />
         <span className="text-xs text-foreground font-medium">{t('output.autoRename')}</span>
       </label>

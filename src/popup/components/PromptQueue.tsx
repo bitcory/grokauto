@@ -3,10 +3,10 @@ import { useQueueStore } from '../../store/useQueueStore';
 import { cn } from '../../utils/cn';
 
 const STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-muted text-muted-foreground',
-  running: 'bg-warning/20 text-warning border-warning',
-  completed: 'bg-success/20 text-success border-success',
-  failed: 'bg-danger/20 text-danger border-danger',
+  pending: 'bg-muted text-muted-foreground border-border',
+  running: 'bg-warning/20 text-warning border-warning/40',
+  completed: 'bg-success/20 text-success border-success/40',
+  failed: 'bg-danger/20 text-danger border-danger/40',
 };
 
 const STATUS_DOT: Record<string, string> = {
@@ -25,17 +25,17 @@ export default function PromptQueue() {
   return (
     <div className="px-4 py-2">
       <div className="flex items-center justify-between mb-1.5">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {t('queue.label')}
         </label>
         <div className="flex gap-1.5">
-          <span className="memphis-badge bg-warning/20 text-warning border-warning">
+          <span className="memphis-badge bg-warning/15 text-warning border-warning/30">
             {t('queue.active', { count: activeCount() })}
           </span>
-          <span className="memphis-badge bg-success/20 text-success border-success">
+          <span className="memphis-badge bg-success/15 text-success border-success/30">
             {t('queue.completed', { count: completedCount() })}
           </span>
-          <span className="memphis-badge bg-danger/20 text-danger border-danger">
+          <span className="memphis-badge bg-danger/15 text-danger border-danger/30">
             {t('queue.failed', { count: failedCount() })}
           </span>
         </div>
@@ -45,7 +45,7 @@ export default function PromptQueue() {
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center gap-1.5 bg-white border-2 border-foreground rounded-neo-sm px-2 py-1 text-[9px]"
+            className="flex items-center gap-1.5 bg-white border border-border rounded-lg px-2 py-1 text-[9px] shadow-sm"
           >
             <span
               className={cn(

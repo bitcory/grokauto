@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { cn } from '../../utils/cn';
-import { Undo2 } from 'lucide-react';
+import { Icon } from '@iconify/react';
 import type { GenerationMode, ResizeRatio } from '../../types';
 
 const MODES: GenerationMode[] = [
@@ -28,7 +28,7 @@ export default function ModeSelector() {
 
   return (
     <div className="px-4 py-3">
-      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 block">
+      <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
         {t('mode.label')}
       </label>
       <div className="flex gap-2">
@@ -50,9 +50,9 @@ export default function ModeSelector() {
         {previousMode && RETURN_MODES.includes(previousMode) && !RETURN_MODES.includes(mode) && (
           <button
             onClick={() => setMode(previousMode)}
-            className="neo-btn px-2.5 py-1.5 text-[10px] gap-1 bg-primary/10 text-primary border-primary whitespace-nowrap"
+            className="neo-btn px-2.5 py-1.5 text-[10px] gap-1 bg-primary/10 text-primary border border-primary/30 whitespace-nowrap"
           >
-            <Undo2 className="w-3 h-3" />
+            <Icon icon="solar:undo-left-bold" width={12} height={12} />
             {t(`mode.${previousMode}`)}
           </button>
         )}
@@ -61,7 +61,7 @@ export default function ModeSelector() {
       {/* Resize ratio selector */}
       {mode === 'resize' && (
         <div className="mt-3">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 block">
             {t('mode.resizeRatio')}
           </label>
           <div className="flex gap-1.5">
@@ -73,10 +73,10 @@ export default function ModeSelector() {
                   setPromptText(getResizePrompt(r));
                 }}
                 className={cn(
-                  'flex-1 py-1.5 text-[10px] font-bold rounded-neo-sm border-2 transition-all',
+                  'flex-1 py-1.5 text-[10px] font-semibold rounded-lg border transition-all duration-200',
                   resizeTargetRatio === r
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-white text-foreground border-foreground hover:bg-muted'
+                    ? 'bg-primary text-white border-primary shadow-neo-sm-primary'
+                    : 'bg-white text-foreground border-border hover:bg-muted'
                 )}
               >
                 {r}

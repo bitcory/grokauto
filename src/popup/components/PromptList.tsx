@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
-import { Clock } from 'lucide-react';
+import { Icon } from '@iconify/react';
 import type { ImageRefMode } from '../../types';
 
 function parsePrompts(text: string): string[] {
@@ -34,7 +34,6 @@ export default function PromptList() {
     ? uploadedImages.length >= prompts.length * 2
     : uploadedImages.length >= prompts.length;
 
-  // Sync modes array with prompt count
   useEffect(() => {
     syncPromptImageRefModes(prompts.length, uploadedImages.length);
     syncPromptImageSelections(prompts.length);
@@ -45,8 +44,8 @@ export default function PromptList() {
   return (
     <div className="px-4 py-2">
       <div className="flex items-center gap-1.5 mb-2">
-        <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <Icon icon="solar:clock-circle-bold" width={14} height={14} className="text-muted-foreground" />
+        <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {t('prompt.perPromptMode')}
         </label>
       </div>
@@ -88,13 +87,13 @@ export default function PromptList() {
                       return (
                         <>
                           <div className="relative">
-                            <img src={startImg} alt="" className="w-6 h-6 object-cover rounded-neo-sm border-2 border-foreground" />
-                            <span className="absolute bottom-0 left-0 right-0 text-[6px] font-bold text-center bg-foreground/80 text-white rounded-b-sm">S</span>
+                            <img src={startImg} alt="" className="w-6 h-6 object-cover rounded-md border border-border" />
+                            <span className="absolute bottom-0 left-0 right-0 text-[6px] font-bold text-center bg-foreground/70 text-white rounded-b-md">S</span>
                           </div>
                           {endImg && (
                             <div className="relative">
-                              <img src={endImg} alt="" className="w-6 h-6 object-cover rounded-neo-sm border-2 border-foreground" />
-                              <span className="absolute bottom-0 left-0 right-0 text-[6px] font-bold text-center bg-foreground/80 text-white rounded-b-sm">E</span>
+                              <img src={endImg} alt="" className="w-6 h-6 object-cover rounded-md border border-border" />
+                              <span className="absolute bottom-0 left-0 right-0 text-[6px] font-bold text-center bg-foreground/70 text-white rounded-b-md">E</span>
                             </div>
                           )}
                         </>
@@ -106,7 +105,7 @@ export default function PromptList() {
                     <img
                       src={uploadedImages[0]}
                       alt=""
-                      className="w-6 h-6 object-cover rounded-neo-sm border-2 border-foreground shrink-0"
+                      className="w-6 h-6 object-cover rounded-md border border-border shrink-0"
                     />
                   ) : uploadedImages.length > 1 ? (
                     <div className="relative w-8 h-6 shrink-0">
@@ -115,7 +114,7 @@ export default function PromptList() {
                           key={j}
                           src={img}
                           alt=""
-                          className="w-6 h-6 object-cover rounded-neo-sm border-2 border-foreground absolute"
+                          className="w-6 h-6 object-cover rounded-md border border-border absolute"
                           style={{ left: `${j * 4}px`, zIndex: 3 - j }}
                         />
                       ))}
@@ -129,7 +128,7 @@ export default function PromptList() {
                           key={imgIdx}
                           src={uploadedImages[imgIdx]}
                           alt=""
-                          className="w-6 h-6 object-cover rounded-neo-sm border-2 border-primary absolute"
+                          className="w-6 h-6 object-cover rounded-md border-2 border-primary absolute"
                           style={{ left: `${j * 4}px`, zIndex: 3 - j }}
                         />
                       ))}
@@ -143,7 +142,7 @@ export default function PromptList() {
                     <img
                       src={uploadedImages[i]}
                       alt=""
-                      className="w-6 h-6 object-cover rounded-neo-sm border-2 border-foreground shrink-0"
+                      className="w-6 h-6 object-cover rounded-md border border-border shrink-0"
                     />
                   ) : null
                 )
@@ -159,8 +158,8 @@ export default function PromptList() {
                       key={imgIdx}
                       type="button"
                       onClick={() => togglePromptImageSelection(i, imgIdx)}
-                      className={`relative w-8 h-8 rounded-neo-sm border-2 overflow-hidden transition-all ${
-                        selected ? 'border-primary ring-1 ring-primary opacity-100' : 'border-muted opacity-50 hover:opacity-80'
+                      className={`relative w-8 h-8 rounded-lg border-2 overflow-hidden transition-all ${
+                        selected ? 'border-primary ring-1 ring-primary opacity-100' : 'border-border opacity-50 hover:opacity-80'
                       }`}
                     >
                       <img src={img} alt="" className="w-full h-full object-cover" />

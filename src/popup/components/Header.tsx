@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { useQueueStore } from '../../store/useQueueStore';
+import { Icon } from '@iconify/react';
 
 export default function Header() {
   const { t, i18n } = useTranslation();
@@ -12,10 +13,10 @@ export default function Header() {
   };
 
   return (
-    <header className="px-4 py-3 border-b-3 border-foreground bg-background">
+    <header className="px-4 py-3 border-b border-border bg-white shadow-sm">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-neo-sm bg-primary border-3 border-foreground shadow-neo-sm flex items-center justify-center text-primary-foreground font-extrabold text-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-extrabold text-sm shadow-neo-sm-primary">
             G
           </div>
           <div>
@@ -23,7 +24,7 @@ export default function Header() {
               <h1 className="text-sm font-bold text-foreground leading-tight">
                 {t('header.title')}
               </h1>
-              <span className="memphis-badge bg-secondary text-secondary-foreground">
+              <span className="memphis-badge bg-primary/10 text-primary border-primary/20">
                 {t('header.version')}
               </span>
             </div>
@@ -43,24 +44,17 @@ export default function Header() {
           </select>
           <button
             onClick={async () => {
-              // Clear prompts, images, queue
               useAppStore.getState().setPromptText('');
               useAppStore.getState().setUploadedImages([]);
               useQueueStore.getState().clearItems();
-              // Clear stored image data
               const allKeys = await chrome.storage.local.get(null);
               const imgKeys = Object.keys(allKeys).filter((k) => k.startsWith('img_'));
               if (imgKeys.length > 0) await chrome.storage.local.remove(imgKeys);
             }}
-            className="w-7 h-7 rounded-neo-sm border-2 border-foreground bg-surface hover:bg-muted flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-lg border border-border bg-white hover:bg-muted flex items-center justify-center transition-colors text-muted-foreground hover:text-foreground"
             title="Refresh page (bypass cache)"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 2v6h-6" />
-              <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-              <path d="M3 22v-6h6" />
-              <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-            </svg>
+            <Icon icon="solar:refresh-bold" width={14} height={14} />
           </button>
         </div>
       </div>

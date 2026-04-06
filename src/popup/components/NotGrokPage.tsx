@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, AlertTriangle } from 'lucide-react';
+import { Icon } from '@iconify/react';
 
 export default function NotGrokPage() {
   const { t } = useTranslation();
@@ -16,8 +16,8 @@ export default function NotGrokPage() {
   return (
     <div className="flex-1 flex items-center justify-center px-6 animate-fade-in">
       <div className="text-center">
-        <div className="neo-card w-14 h-14 flex items-center justify-center mx-auto mb-4 bg-warning/10 border-warning">
-          <AlertTriangle className="w-7 h-7 text-warning" />
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-warning/10">
+          <Icon icon="solar:danger-triangle-bold" width={28} height={28} className="text-warning" />
         </div>
         <h2 className="text-lg font-extrabold text-foreground mb-2">
           {t('notGrok.title')}
@@ -27,9 +27,9 @@ export default function NotGrokPage() {
         </p>
         <button
           onClick={handleGoToGrok}
-          className="neo-btn px-5 py-2.5 gap-2 bg-primary text-primary-foreground text-sm"
+          className="neo-btn px-5 py-2.5 gap-2 bg-primary text-white text-sm border-transparent shadow-neo-sm-primary"
         >
-          <ExternalLink className="w-4 h-4" />
+          <Icon icon="solar:arrow-right-up-bold" width={16} height={16} />
           {t('notGrok.goToGrok')}
         </button>
       </div>

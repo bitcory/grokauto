@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
+import { Icon } from '@iconify/react';
 import type { GenerationMode, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageGenerationSpeed } from '../../types';
 
 function SettingSection({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
   return (
     <section className="neo-card p-3">
-      <h3 className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1">
+      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-primary mb-1">
         {label}
       </h3>
       {children}
@@ -125,7 +126,7 @@ export default function SettingsPanel() {
           <button
             onClick={() => setMaxRetries(maxRetries - 1)}
             disabled={maxRetries <= 1}
-            className="w-8 h-8 rounded-neo-sm border-2 border-foreground bg-surface hover:bg-muted flex items-center justify-center text-sm font-bold disabled:opacity-30"
+            className="w-8 h-8 rounded-lg border border-border bg-white hover:bg-muted flex items-center justify-center text-sm font-bold disabled:opacity-30 transition-colors"
           >
             -
           </button>
@@ -140,7 +141,7 @@ export default function SettingsPanel() {
           <button
             onClick={() => setMaxRetries(maxRetries + 1)}
             disabled={maxRetries >= 20}
-            className="w-8 h-8 rounded-neo-sm border-2 border-foreground bg-surface hover:bg-muted flex items-center justify-center text-sm font-bold disabled:opacity-30"
+            className="w-8 h-8 rounded-lg border border-border bg-white hover:bg-muted flex items-center justify-center text-sm font-bold disabled:opacity-30 transition-colors"
           >
             +
           </button>
@@ -204,13 +205,9 @@ export default function SettingsPanel() {
       {/* Download Info */}
       <section className="neo-card p-3">
         <div className="flex items-start gap-2">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-primary">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
+          <Icon icon="solar:download-minimalistic-bold" width={16} height={16} className="mt-0.5 shrink-0 text-primary" />
           <div>
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-primary">
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-primary">
               {t('settings.download.label')}
             </h3>
             <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -223,7 +220,7 @@ export default function SettingsPanel() {
       {/* Reset to Defaults */}
       <button
         onClick={resetToDefaults}
-        className="w-full py-2 rounded-neo-sm border-2 border-foreground bg-surface hover:bg-muted text-xs font-semibold transition-colors"
+        className="w-full py-2 rounded-lg border border-border bg-white hover:bg-muted text-xs font-semibold transition-colors text-foreground"
       >
         {t('settings.resetDefaults')}
       </button>
