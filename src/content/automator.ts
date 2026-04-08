@@ -7,7 +7,7 @@ import { setAspectRatio } from './dom/aspectRatio';
 import { setImageGenerationSpeed } from './dom/imageSpeed';
 import { setVideoDuration, setVideoResolution, clickVideoUpscale, waitForUpscaleComplete, clickVideoDownload } from './dom/videoSettings';
 import { navigateToImagine, startNewImagineSession } from './dom/navigate';
-import { waitForGenerationComplete, dismissFeedbackScreen, waitForImageFullyLoaded, waitForVideoLoaded, waitForCloudflareChallenge } from './dom/waiters';
+import { waitForGenerationComplete, dismissFeedbackScreen, waitForImageFullyLoaded, waitForVideoProgressGone, waitForCloudflareChallenge, readVideoProgress } from './dom/waiters';
 import { clickDownloadButton } from './dom/resultCapture';
 import { randomDelay, delay } from './utils/delay';
 
@@ -204,9 +204,37 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
             await delay(1000);
           }
 
+          // 영상 모드: 제출 직후부터 진행률 폴링 시작
+          const sendPhase = (phase: 'generated' | 'upscaling' | 'downloading') => {
+            chrome.runtime.sendMessage({
+              type: 'PROMPT_PROGRESS_UPDATE',
+              payload: { promptId: prompt.id, phase },
+            });
+          };
+
+          let progressPoller: ReturnType<typeof setInterval> | null = null;
+          if (isVideo) {
+            let lastPct = -1;
+            progressPoller = setInterval(() => {
+              const pct = readVideoProgress();
+              if (pct !== null && pct !== lastPct) {
+                lastPct = pct;
+                chrome.runtime.sendMessage({
+                  type: 'PROMPT_PROGRESS_UPDATE',
+                  payload: { promptId: prompt.id, progress: pct },
+                });
+              }
+            }, 500);
+          }
+
           // Wait for generation to complete
           const genTimeout = isVideo ? 180000 : 120000;
           const completed = await waitForGenerationComplete(genTimeout, isVideo);
+
+          if (progressPoller) {
+            clearInterval(progressPoller);
+            progressPoller = null;
+          }
 
           // Check for Cloudflare challenge during generation
           await waitForCloudflareChallenge();
@@ -220,8 +248,9 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
 
           // Wait for media to be fully loaded before downloading
           if (isVideo) {
-            await waitForVideoLoaded(30000);
-            await delay(2000);
+            sendPhase('generated');
+            await waitForVideoProgressGone(180000);
+            await delay(500);
           } else {
             await waitForImageFullyLoaded(30000);
             await delay(1000);
@@ -233,12 +262,14 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
           if (isVideo) {
             if (videoDownloadQuality !== 'none') {
               if (videoDownloadQuality === '480p-upscale') {
+                sendPhase('upscaling');
                 const upscaled = await clickVideoUpscale();
                 if (upscaled) {
                   await waitForUpscaleComplete(120000);
-                  await delay(3000);
+                  await delay(1000);
                 }
               }
+              sendPhase('downloading');
               // Set download folder right before download click
               await chrome.runtime.sendMessage({
                 type: 'SET_DOWNLOAD_FOLDER',

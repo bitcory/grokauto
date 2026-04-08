@@ -267,13 +267,8 @@ export async function waitForUpscaleComplete(timeoutMs: number = 180000): Promis
       const elapsed = Date.now() - startTime;
       const sinceLastChange = Date.now() - lastChangeTime;
 
-      // Check if "업스케일링" overlay is still visible
-      const isUpscaling = !!Array.from(document.querySelectorAll('span, div, p')).find(
-        (el) => {
-          const text = (el as HTMLElement).innerText?.trim() ?? '';
-          return text === '업스케일링' || text === 'Upscaling';
-        }
-      );
+      // Check if upscaling overlay is still visible (animate-pulse-lg = upscaling indicator)
+      const isUpscaling = !!document.querySelector('[class*="animate-pulse-lg"]');
 
       if (!isUpscaling && elapsed > 5000 && sinceLastChange > 3000) {
         clearInterval(check);

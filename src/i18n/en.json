@@ -1,7 +1,7 @@
 {
   "header": {
     "title": "Grok Automation",
-    "version": "V1.7.1",
+    "version": "V1.8.0",
     "description": "Grok AI Automation Tool"
   },
   "tabs": {
@@ -101,7 +101,12 @@
     "running": "Running",
     "completedStatus": "Done",
     "failedStatus": "Failed",
-    "empty": "Queue is empty"
+    "empty": "Queue is empty",
+    "phase": {
+      "generated": "Generated",
+      "upscaling": "Upscaling",
+      "downloading": "Downloading"
+    }
   },
   "notGrok": {
     "title": "Not a Grok Page",

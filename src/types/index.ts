@@ -41,6 +41,8 @@ export interface PromptItem {
   outputCount: number;
   error?: string;
   downloadProgress?: number; // 0-100
+  progress?: number; // 생성 진행률 0-100
+  phase?: 'generated' | 'upscaling' | 'downloading'; // 세부 단계
 }
 
 export interface AppSettings {

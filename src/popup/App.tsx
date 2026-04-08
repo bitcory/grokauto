@@ -29,7 +29,7 @@ function isGrokUrl(url?: string): boolean {
 export default function App() {
   const { i18n } = useTranslation();
   const { activeTab, language, loadFromStorage, setIsRunning } = useAppStore();
-  const { updateItemStatus } = useQueueStore();
+  const { updateItemStatus, updateItemProgress } = useQueueStore();
   const [isGrokTab, setIsGrokTab] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -72,6 +72,9 @@ export default function App() {
           message.payload.status,
           message.payload.error
         );
+      }
+      if (message.type === 'PROGRESS_UPDATE' && message.payload) {
+        updateItemProgress(message.payload.promptId, message.payload.progress, message.payload.phase);
       }
       if (message.type === 'AUTOMATION_DONE') {
         setIsRunning(false);

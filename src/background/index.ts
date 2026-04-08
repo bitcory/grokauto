@@ -2,6 +2,12 @@ import type { Message } from '../shared/messages';
 
 console.log('[GrokAuto] Background service worker started');
 
+// 서비스 워커 재시작 시 storage에서 상태 복구
+chrome.storage.session.get(['downloadCounter', 'sessionPrefix']).then((data) => {
+  if (data.downloadCounter != null) downloadCounter = data.downloadCounter;
+  if (data.sessionPrefix) sessionPrefix = data.sessionPrefix;
+}).catch(() => {});
+
 // Open side panel when extension icon is clicked
 chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({ windowId: tab.windowId });
@@ -35,7 +41,8 @@ function generateSessionPrefix(): string {
   const d = String(now.getDate()).padStart(2, '0');
   const h = String(now.getHours()).padStart(2, '0');
   const mi = String(now.getMinutes()).padStart(2, '0');
-  return `${y}${mo}${d}_${h}${mi}`;
+  const s = String(now.getSeconds()).padStart(2, '0');
+  return `${y}${mo}${d}_${h}${mi}${s}`;
 }
 
 // Intercept downloads from grok.com and redirect to specified folder
@@ -49,7 +56,9 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     }
     const ext = item.filename.split('.').pop() || 'mp4';
     downloadCounter++;
-    const numberedName = `${downloadCounter}_${sessionPrefix}.${ext}`;
+    chrome.storage.session.set({ downloadCounter }).catch(() => {});
+    // 다운로드 시각을 매번 새로 생성
+    const numberedName = `${downloadCounter}_${generateSessionPrefix()}.${ext}`;
     suggest({ filename: `${folder}/${numberedName}` });
     console.log(`[GrokAuto] Redirected download to: ${folder}/${numberedName}`);
   } else {
@@ -64,6 +73,8 @@ chrome.runtime.onMessage.addListener(
       case 'START_AUTOMATION':
         downloadCounter = 0;
         sessionPrefix = generateSessionPrefix();
+        // storage에도 저장 (서비스 워커 재시작 대비)
+        chrome.storage.session.set({ downloadCounter: 0, sessionPrefix }).catch(() => {});
         forwardToGrokTab(message).then(sendResponse);
         return true;
 
@@ -103,6 +114,14 @@ chrome.runtime.onMessage.addListener(
           payload: message.payload,
         }).catch(() => {});
         updateBadge(message.payload.status);
+        sendResponse({ ok: true });
+        break;
+
+      case ('PROMPT_PROGRESS_UPDATE' as any):
+        chrome.runtime.sendMessage({
+          type: 'PROGRESS_UPDATE',
+          payload: (message as any).payload,
+        }).catch(() => {});
         sendResponse({ ok: true });
         break;
 

@@ -1,7 +1,7 @@
 {
   "header": {
     "title": "Grok 자동화",
-    "version": "V1.7.1",
+    "version": "V1.8.0",
     "description": "Grok AI 자동화 도구"
   },
   "tabs": {
@@ -101,7 +101,12 @@
     "running": "진행중",
     "completedStatus": "완료",
     "failedStatus": "실패",
-    "empty": "대기열이 비어있습니다"
+    "empty": "대기열이 비어있습니다",
+    "phase": {
+      "generated": "생성완료",
+      "upscaling": "업스케일링",
+      "downloading": "다운로드중"
+    }
   },
   "notGrok": {
     "title": "Grok 페이지가 아닙니다",

@@ -274,6 +274,83 @@ export function waitForCloudflareChallenge(timeoutMs: number = 300000): Promise<
 }
 
 /**
+ * Detect if the video generation progress indicator is visible.
+ * Targets: span.tabular-nums.animate-pulse (e.g. "15%")
+ */
+function isVideoProgressVisible(): boolean {
+  return !!document.querySelector('span.tabular-nums.animate-pulse');
+}
+
+/**
+ * Read the current generation progress percentage from the DOM.
+ * Returns null if the indicator is not visible.
+ */
+export function readVideoProgress(): number | null {
+  const span = document.querySelector('span.tabular-nums.animate-pulse') as HTMLElement | null;
+  if (!span) return null;
+  const match = span.innerText?.trim().match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Wait for the video generation progress indicator to disappear.
+ * Used to trigger upscaling the moment generation finishes.
+ * Falls back to a max timeout if the indicator was never detected.
+ */
+export function waitForVideoProgressGone(
+  timeoutMs: number = 180000,
+  onProgress?: (pct: number) => void
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+
+    let indicatorSeen = false;
+    const appearDeadline = Date.now() + 5000;
+    let lastPct = -1;
+
+    const check = () => {
+      const elapsed = Date.now() - startTime;
+
+      if (elapsed > timeoutMs) {
+        console.warn('[GrokAuto] waitForVideoProgressGone: timed out');
+        resolve(false);
+        return;
+      }
+
+      const visible = isVideoProgressVisible();
+
+      if (visible) {
+        indicatorSeen = true;
+        // 진행률 변화 시 콜백 호출
+        if (onProgress) {
+          const pct = readVideoProgress();
+          if (pct !== null && pct !== lastPct) {
+            lastPct = pct;
+            onProgress(pct);
+          }
+        }
+      }
+
+      if (indicatorSeen && !visible) {
+        console.log(`[GrokAuto] Video progress indicator gone (${Math.round(elapsed / 1000)}s)`);
+        resolve(true);
+        return;
+      }
+
+      if (!indicatorSeen && Date.now() > appearDeadline) {
+        console.log('[GrokAuto] Video progress indicator never detected — assuming done');
+        resolve(true);
+        return;
+      }
+
+      setTimeout(check, 300);
+    };
+
+    check();
+  });
+}
+
+/**
  * Wait for a specified element to appear in the DOM
  */
 export function waitForElement(
