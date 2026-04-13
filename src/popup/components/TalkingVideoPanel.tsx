@@ -104,13 +104,31 @@ export default function TalkingVideoPanel() {
             className={cn(
               'flex-1 py-2 text-[11px] font-semibold rounded-lg border transition-all duration-200',
               videoType === type
-                ? 'bg-primary text-white border-primary shadow-[0_2px_8px_rgba(99,102,241,0.3)]'
+                ? 'btn-green-grad text-white border-transparent'
                 : 'bg-white text-foreground border-border hover:bg-muted'
             )}
           >
             {t(`talkingVideo.type.${type}`)}
           </button>
         ))}
+      </div>
+
+      {/* Generate Buttons — 인터뷰/말하는영상 토글 바로 아래 배치 */}
+      <div className="flex gap-2">
+        <button
+          onClick={generateImagePrompt}
+          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-secondary/10 text-secondary border border-secondary/30"
+        >
+          <Icon icon="solar:gallery-bold" width={14} height={14} />
+          {t('talkingVideo.genImage')}
+        </button>
+        <button
+          onClick={generateVideoPrompts}
+          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-primary/10 text-primary border border-primary/30"
+        >
+          <Icon icon="solar:videocamera-record-bold" width={14} height={14} />
+          {t('talkingVideo.genVideo')}
+        </button>
       </div>
 
       {/* Character Info */}
@@ -232,23 +250,6 @@ export default function TalkingVideoPanel() {
         ))}
       </div>
 
-      {/* Generate Buttons */}
-      <div className="flex gap-2">
-        <button
-          onClick={generateImagePrompt}
-          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-secondary/10 text-secondary border border-secondary/30"
-        >
-          <Icon icon="solar:gallery-bold" width={14} height={14} />
-          {t('talkingVideo.genImage')}
-        </button>
-        <button
-          onClick={generateVideoPrompts}
-          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-primary/10 text-primary border border-primary/30"
-        >
-          <Icon icon="solar:videocamera-record-bold" width={14} height={14} />
-          {t('talkingVideo.genVideo')}
-        </button>
-      </div>
     </div>
   );
 }

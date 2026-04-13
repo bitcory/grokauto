@@ -1,7 +1,7 @@
 {
   "header": {
     "title": "Grok Automation",
-    "version": "V1.8.0",
+    "version": "V1.9.1",
     "description": "Grok AI Automation Tool"
   },
   "tabs": {
@@ -18,7 +18,8 @@
     "resize": "Resize",
     "talking-video": "Talking Video",
     "cinematic-intro": "Cinematic Intro",
-    "resizeRatio": "Target Ratio"
+    "resizeRatio": "Target Ratio",
+    "aspectRatio": "Aspect Ratio"
   },
   "talkingVideo": {
     "type": {
@@ -116,7 +117,8 @@
   "actions": {
     "clear": "Clear",
     "start": "Start",
-    "stop": "Stop"
+    "stop": "Stop",
+    "back": "Back"
   },
   "settings": {
     "defaultMode": {

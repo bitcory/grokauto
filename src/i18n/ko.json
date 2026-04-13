@@ -1,7 +1,7 @@
 {
   "header": {
     "title": "Grok 자동화",
-    "version": "V1.8.0",
+    "version": "V1.9.1",
     "description": "Grok AI 자동화 도구"
   },
   "tabs": {
@@ -18,7 +18,8 @@
     "resize": "사이즈변경",
     "talking-video": "말하는영상",
     "cinematic-intro": "시네마틱인트로",
-    "resizeRatio": "변환 비율"
+    "resizeRatio": "변환 비율",
+    "aspectRatio": "화면 비율"
   },
   "talkingVideo": {
     "type": {
@@ -116,7 +117,8 @@
   "actions": {
     "clear": "지우기",
     "start": "실행",
-    "stop": "중지"
+    "stop": "중지",
+    "back": "뒤로가기"
   },
   "settings": {
     "defaultMode": {

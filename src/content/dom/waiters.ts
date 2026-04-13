@@ -19,14 +19,31 @@ export function dismissFeedbackScreen(): boolean {
 }
 
 /**
+ * Result of waiting for a generation to complete.
+ * - 'completed': media appeared and DOM stabilized
+ * - 'timeout': ran out of time
+ * - 'content-hidden': Grok showed the "content hidden" (lucide-eye-off) icon — moderation block
+ */
+export type GenerationResult = 'completed' | 'timeout' | 'content-hidden';
+
+/**
+ * Check if Grok's "content hidden" icon (lucide eye-off SVG) is present in the DOM.
+ * Grok renders this when the generated content is blocked by moderation.
+ */
+export function hasHiddenContentIcon(): boolean {
+  return !!document.querySelector('svg.lucide-eye-off');
+}
+
+/**
  * Wait for generation to complete.
  * For images: wait for new <img> elements + DOM stabilization (5s min, 2s stable).
  * For videos: wait for <video> with valid src + longer stabilization (20s min, 5s stable).
+ * Fails fast with 'content-hidden' if Grok shows the moderation eye-off icon.
  */
 export function waitForGenerationComplete(
   timeoutMs: number = 120000,
   isVideo: boolean = false
-): Promise<boolean> {
+): Promise<GenerationResult> {
   const MIN_TIME = isVideo ? 20000 : 5000;
   const STABLE_TIME = isVideo ? 5000 : 2000;
 
@@ -35,6 +52,7 @@ export function waitForGenerationComplete(
 
     const initialImgCount = document.querySelectorAll('img').length;
     const initialVideoCount = document.querySelectorAll('video').length;
+    const initialHiddenCount = document.querySelectorAll('svg.lucide-eye-off').length;
 
     let settled = false;
     let stabilizationTimer: ReturnType<typeof setTimeout> | null = null;
@@ -59,6 +77,17 @@ export function waitForGenerationComplete(
 
     const tryResolve = () => {
       if (settled) return;
+
+      // 모더레이션 차단 아이콘이 새로 나타났으면 MIN_TIME 가드를 우회하고 즉시 실패 처리
+      const currentHiddenCount = document.querySelectorAll('svg.lucide-eye-off').length;
+      if (currentHiddenCount > initialHiddenCount) {
+        const elapsed = Date.now() - startTime;
+        console.log(`[GrokAuto] Content hidden icon detected — moderation block (${Math.round(elapsed / 1000)}s)`);
+        cleanup();
+        resolve('content-hidden');
+        return;
+      }
+
       const elapsed = Date.now() - startTime;
       if (elapsed < MIN_TIME) return;
 
@@ -70,14 +99,14 @@ export function waitForGenerationComplete(
         if (hasVideoWithSrc() && domStable) {
           console.log(`[GrokAuto] Video generation complete (${Math.round(elapsed / 1000)}s, stable ${Math.round(timeSinceLastChange / 1000)}s)`);
           cleanup();
-          resolve(true);
+          resolve('completed');
           return;
         }
         // Fallback: after 3x min time with DOM stable (video might use different element)
         if (domStable && elapsed > MIN_TIME * 3) {
           console.log(`[GrokAuto] Video generation complete (fallback, ${Math.round(elapsed / 1000)}s)`);
           cleanup();
-          resolve(true);
+          resolve('completed');
           return;
         }
       } else {
@@ -88,14 +117,14 @@ export function waitForGenerationComplete(
         if (hasNewMedia && domStable) {
           console.log(`[GrokAuto] Image generation complete (${Math.round(elapsed / 1000)}s)`);
           cleanup();
-          resolve(true);
+          resolve('completed');
           return;
         }
         // Fallback: DOM stable for a long time
         if (domStable && elapsed > MIN_TIME * 2) {
           console.log(`[GrokAuto] Generation complete (fallback, ${Math.round(elapsed / 1000)}s)`);
           cleanup();
-          resolve(true);
+          resolve('completed');
           return;
         }
       }
@@ -104,6 +133,12 @@ export function waitForGenerationComplete(
     const observer = new MutationObserver(() => {
       if (settled) return;
       lastDomChangeTime = Date.now();
+      // 모더레이션 아이콘은 DOM 변경 즉시 확인 (안정화 대기 없이)
+      const currentHiddenCount = document.querySelectorAll('svg.lucide-eye-off').length;
+      if (currentHiddenCount > initialHiddenCount) {
+        tryResolve();
+        return;
+      }
       if (stabilizationTimer) clearTimeout(stabilizationTimer);
       stabilizationTimer = setTimeout(tryResolve, STABLE_TIME + 100);
     });
@@ -121,9 +156,168 @@ export function waitForGenerationComplete(
         clearInterval(checkInterval);
         cleanup();
         console.log('[GrokAuto] Generation timed out');
-        resolve(false);
+        resolve('timeout');
       }
     }, timeoutMs);
+  });
+}
+
+export interface TextToImageDetection {
+  status: GenerationResult;
+  imageUrl?: string;
+}
+
+/**
+ * Fast-path generation detection for text-to-image mode.
+ *
+ * Grok's /imagine page is an SPA, so the previous generation's <img> element
+ * (with its base64 data URL src) often persists in the masonry section across
+ * "new session" navigations. To avoid falsely matching that stale image, we
+ * snapshot every existing data: URL in the masonry sections at the moment this
+ * wait begins, then resolve only when an <img> with a src that's NOT in that
+ * snapshot appears.
+ *
+ * Resolves with:
+ * - { status: 'completed', imageUrl } → a new data:image src appeared
+ * - { status: 'content-hidden' }      → moderation eye-off icon appeared
+ * - { status: 'timeout' }             → neither happened within timeoutMs
+ */
+export function waitForTextToImageResult(
+  timeoutMs: number = 120000
+): Promise<TextToImageDetection> {
+  // 프롬프트 제출 직후에 호출되는 함수이다.
+  // Grok은 SPA이므로 이전 세션의 이미지가 DOM에 잔존할 수 있고,
+  // 페이지 전환 과정에서 기존 이미지를 새 data URL로 리렌더하기도 한다.
+  // 따라서:
+  //  1) 기존 data URL을 baseline으로 캡처해서 "새 이미지"의 기준을 잡고
+  //  2) MIN_WAIT 동안은 매칭하지 않아서 서버가 실제 생성을 시작할 시간을 확보
+  //  3) 이후 baseline에 없는 새 src가 나타나면 비로소 완료 처리
+
+  const MIN_WAIT = 8000; // 최소 8초 대기 — 서버 생성 시작까지 여유
+  const STABLE_MS = 2000; // 후보 src가 이 시간 동안 변하지 않아야 "완전 생성"으로 인정
+
+  return new Promise((resolve) => {
+    // Snapshot existing data URL images so we ignore the previous generation
+    const initialSrcs = new Set<string>();
+    document
+      .querySelectorAll('[id^="imagine-masonry-section-"] img')
+      .forEach((el) => {
+        const src = (el as HTMLImageElement).src;
+        if (src && src.startsWith('data:image/')) initialSrcs.add(src);
+      });
+    console.log(
+      `[GrokAuto] Text-to-image baseline: ${initialSrcs.size} pre-existing image(s) to ignore`
+    );
+
+    const startTime = Date.now();
+    let settled = false;
+
+    // 후보가 발견되면 src가 안정화될 때까지 추적
+    let candidateImg: HTMLImageElement | null = null;
+    let candidateSrc: string | null = null;
+    let candidateSince = 0;
+
+    const cleanup = () => {
+      settled = true;
+      observer.disconnect();
+      clearTimeout(timeoutId);
+      clearInterval(pollId);
+    };
+
+    const isFullyLoaded = (img: HTMLImageElement): boolean =>
+      img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
+
+    const check = () => {
+      if (settled) return;
+      const elapsed = Date.now() - startTime;
+
+      // Moderation block — always check, even during MIN_WAIT
+      if (document.querySelector('svg.lucide-eye-off')) {
+        console.log(
+          `[GrokAuto] Text-to-image: content hidden (${Math.round(elapsed / 1000)}s)`
+        );
+        cleanup();
+        resolve({ status: 'content-hidden' });
+        return;
+      }
+
+      // Don't match images until MIN_WAIT has passed,
+      // to ensure grok has actually started generating (not just re-rendering old results)
+      if (elapsed < MIN_WAIT) return;
+
+      // Look for any data URL <img> that wasn't in the baseline snapshot
+      const allImgs = document.querySelectorAll(
+        '[id^="imagine-masonry-section-"] img'
+      );
+      let found: { img: HTMLImageElement; src: string } | null = null;
+      for (const el of allImgs) {
+        const img = el as HTMLImageElement;
+        const src = img.src;
+        if (
+          src &&
+          src.startsWith('data:image/') &&
+          src.length > 1000 &&
+          !initialSrcs.has(src)
+        ) {
+          found = { img, src };
+          break;
+        }
+      }
+
+      if (!found) {
+        // 후보가 사라졌다면 초기화 (DOM 리렌더링 등)
+        if (candidateImg) {
+          candidateImg = null;
+          candidateSrc = null;
+        }
+        return;
+      }
+
+      // 새 후보로 갱신 또는 기존 후보의 src 변경 시 타이머 리셋
+      if (candidateSrc !== found.src) {
+        candidateImg = found.img;
+        candidateSrc = found.src;
+        candidateSince = Date.now();
+        console.log(
+          `[GrokAuto] Text-to-image candidate detected at ${Math.round(elapsed / 1000)}s — waiting for stabilization (${STABLE_MS}ms)`
+        );
+        return;
+      }
+
+      // src가 유지되었는지 + 이미지가 실제로 디코드 완료인지 확인
+      const stableFor = Date.now() - candidateSince;
+      if (stableFor < STABLE_MS) return;
+      if (!candidateImg || !isFullyLoaded(candidateImg)) return;
+
+      console.log(
+        `[GrokAuto] Text-to-image FULLY generated in ${Math.round(elapsed / 1000)}s (stable ${Math.round(stableFor / 1000)}s, ${candidateImg.naturalWidth}×${candidateImg.naturalHeight})`
+      );
+      cleanup();
+      resolve({ status: 'completed', imageUrl: candidateSrc });
+    };
+
+    // MutationObserver for real-time DOM changes
+    const observer = new MutationObserver(check);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['src', 'class'],
+    });
+
+    // 추가 폴링 — 후보 안정화 판정을 빠르게 잡기 위해 500ms 간격
+    const pollId = setInterval(check, 500);
+
+    const timeoutId = setTimeout(() => {
+      if (!settled) {
+        cleanup();
+        console.log('[GrokAuto] Text-to-image generation timed out');
+        resolve({ status: 'timeout' });
+      }
+    }, timeoutMs);
+
+    // Initial check (MIN_WAIT 때문에 즉시 매칭은 안 됨)
+    check();
   });
 }
 

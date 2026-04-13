@@ -95,9 +95,9 @@ export default function App() {
       {isGrokTab ? (
         <>
           <TabNav />
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto pt-3">
             {activeTab === 'control' ? (
-              <div className="card-stagger">
+              <div className="card-stagger container-900 px-3 pb-3 space-y-3">
                 <ModeSelector />
                 <TalkingVideoPanel />
                 <CinematicIntroPanel />
@@ -108,7 +108,9 @@ export default function App() {
                 <PromptQueue />
               </div>
             ) : (
-              <SettingsPanel />
+              <div className="container-900 px-3 pb-3">
+                <SettingsPanel />
+              </div>
             )}
           </div>
           {activeTab === 'control' && <ActionButtons />}

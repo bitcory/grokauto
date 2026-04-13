@@ -232,7 +232,7 @@ export default function ActionButtons() {
       ) : (
         <button
           onClick={handleStart}
-          className="neo-btn flex-1 py-2.5 gap-1.5 bg-primary text-white border-transparent shadow-neo-sm-primary"
+          className="neo-btn flex-1 py-2.5 gap-1.5 btn-green-grad"
         >
           <Icon icon="solar:play-bold" width={14} height={14} />
           {t('actions.start')}

@@ -13,21 +13,29 @@ export default function TabNav() {
   ];
 
   return (
-    <div className="flex gap-2 px-4 py-2 bg-white border-b border-border">
-      {tabs.map((tab) => (
-        <button
-          key={tab.key}
-          onClick={() => setActiveTab(tab.key)}
-          className={cn(
-            'flex-1 py-2 text-xs font-semibold rounded-lg border transition-all duration-200',
-            activeTab === tab.key
-              ? 'bg-primary text-white border-primary shadow-neo-sm-primary'
-              : 'bg-white text-muted-foreground border-border hover:bg-muted hover:text-foreground hover:-translate-y-px'
-          )}
-        >
-          {tab.label}
-        </button>
-      ))}
+    <div className="px-4 relative z-20" style={{ marginTop: '-22px' }}>
+      <div className="container-900">
+        <div className="glass-nav p-1 flex gap-1">
+          {tabs.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  'flex-1 py-2 text-xs font-semibold transition-all duration-200',
+                  'rounded-full',
+                  active
+                    ? 'btn-green-grad text-white'
+                    : 'text-[color:var(--sub-foreground)] hover:text-foreground'
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

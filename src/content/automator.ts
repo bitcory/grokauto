@@ -7,8 +7,8 @@ import { setAspectRatio } from './dom/aspectRatio';
 import { setImageGenerationSpeed } from './dom/imageSpeed';
 import { setVideoDuration, setVideoResolution, clickVideoUpscale, waitForUpscaleComplete, clickVideoDownload } from './dom/videoSettings';
 import { navigateToImagine, startNewImagineSession } from './dom/navigate';
-import { waitForGenerationComplete, dismissFeedbackScreen, waitForImageFullyLoaded, waitForVideoProgressGone, waitForCloudflareChallenge, readVideoProgress } from './dom/waiters';
-import { clickDownloadButton } from './dom/resultCapture';
+import { waitForGenerationComplete, waitForTextToImageResult, dismissFeedbackScreen, waitForImageFullyLoaded, waitForVideoProgressGone, waitForCloudflareChallenge, readVideoProgress } from './dom/waiters';
+import { clickDownloadButton, getFirstGeneratedImageUrl } from './dom/resultCapture';
 import { randomDelay, delay } from './utils/delay';
 
 interface AutomationConfig {
@@ -228,8 +228,17 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
           }
 
           // Wait for generation to complete
+          // text-to-image는 base64 data URL이라 별도의 fast-path 감지를 사용 (안정화 대기 없음)
           const genTimeout = isVideo ? 180000 : 120000;
-          const completed = await waitForGenerationComplete(genTimeout, isVideo);
+          let genResult: 'completed' | 'timeout' | 'content-hidden';
+          let textToImageDataUrl: string | undefined;
+          if (mode === 'text-to-image') {
+            const t2iResult = await waitForTextToImageResult(genTimeout);
+            genResult = t2iResult.status;
+            textToImageDataUrl = t2iResult.imageUrl;
+          } else {
+            genResult = await waitForGenerationComplete(genTimeout, isVideo);
+          }
 
           if (progressPoller) {
             clearInterval(progressPoller);
@@ -239,8 +248,26 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
           // Check for Cloudflare challenge during generation
           await waitForCloudflareChallenge();
 
-          if (!completed) {
+          if (genResult === 'timeout') {
             throw new Error('Generation timed out');
+          }
+
+          // 모더레이션으로 결과가 숨김 처리된 경우: 재시도 없이 실패로 마크하고 다음 프롬프트로 진행
+          if (genResult === 'content-hidden') {
+            console.log('[GrokAuto] Content blocked by moderation — marking as failed and moving on');
+            chrome.runtime.sendMessage({
+              type: 'PROMPT_STATUS_UPDATE',
+              payload: {
+                promptId: prompt.id,
+                status: 'failed',
+                error: 'Content blocked by moderation',
+              },
+            });
+            clearPrompt();
+            if (imageDataUrls && imageDataUrls.length > 0) {
+              await chrome.storage.local.remove(imgKey);
+            }
+            break; // exit retry loop → next prompt
           }
 
           // Dismiss feedback/comparison screen if it appeared
@@ -251,6 +278,9 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
             sendPhase('generated');
             await waitForVideoProgressGone(180000);
             await delay(500);
+          } else if (mode === 'text-to-image') {
+            // text-to-image는 waitForTextToImageResult에서 이미 src 존재까지 확인 완료.
+            // data URL은 즉시 사용 가능하므로 추가 대기 불필요.
           } else {
             await waitForImageFullyLoaded(30000);
             await delay(1000);
@@ -277,10 +307,24 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
               });
               await clickVideoDownload();
             }
+          } else if (mode === 'text-to-image') {
+            // text-to-image: waitForTextToImageResult가 이미 검증한 새 이미지 URL을 그대로 사용.
+            // (DOM에서 다시 잡으려 하면 이전 세션의 잔존 이미지를 잘못 잡을 위험이 있음)
+            if (imageDownloadQuality !== 'none') {
+              const imgUrl = textToImageDataUrl ?? getFirstGeneratedImageUrl();
+              if (imgUrl) {
+                console.log(`[GrokAuto] text-to-image: downloading ${imgUrl.slice(0, 80)}...`);
+                await chrome.runtime.sendMessage({
+                  type: 'DOWNLOAD_RESULT',
+                  payload: { url: imgUrl, folder: saveFolder },
+                });
+              } else {
+                console.warn('[GrokAuto] text-to-image: first image URL not found, skipping download');
+              }
+            }
           } else {
-            // text-to-image: grok.com UI 변경으로 다운로드 스킵
             // image-to-image, resize 등 다른 이미지 모드는 기존 로직 유지
-            if (mode !== 'text-to-image' && imageDownloadQuality !== 'none') {
+            if (imageDownloadQuality !== 'none') {
               // Set download folder right before download click
               await chrome.runtime.sendMessage({
                 type: 'SET_DOWNLOAD_FOLDER',

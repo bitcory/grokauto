@@ -1,4 +1,26 @@
 /**
+ * Get the URL of the first generated image inside the imagine masonry section.
+ * Used for text-to-image where Grok no longer exposes the download button.
+ * Selector source: #imagine-masonry-section-0 ... > div:nth-child(1) > img
+ */
+export function getFirstGeneratedImageUrl(): string | null {
+  // Primary: exact id #imagine-masonry-section-0
+  const section = document.querySelector('#imagine-masonry-section-0');
+  if (section) {
+    const img = section.querySelector('img') as HTMLImageElement | null;
+    if (img?.src) return img.src;
+  }
+  // Fallback: any imagine-masonry-section-* (in case the index changes)
+  const fallbackSection = document.querySelector('[id^="imagine-masonry-section-"]');
+  if (fallbackSection) {
+    const img = fallbackSection.querySelector('img') as HTMLImageElement | null;
+    if (img?.src) return img.src;
+  }
+  console.warn('[GrokAuto] getFirstGeneratedImageUrl: no image found in masonry section');
+  return null;
+}
+
+/**
  * Click the image download button on the grok.com/imagine result page.
  * Tries aria-label first, then falls back to positional index.
  */

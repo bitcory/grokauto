@@ -27,11 +27,11 @@ export interface StopAutomationMessage {
 }
 
 // Content → Background
+// Background generates the auto-numbered filename from the URL extension.
 export interface DownloadResultMessage {
   type: 'DOWNLOAD_RESULT';
   payload: {
     url: string;
-    filename: string;
     folder: string;
   };
 }

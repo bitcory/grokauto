@@ -40,8 +40,8 @@ export default {
         'neo-sm': '0 1px 3px rgba(30,32,48,0.05), 0 4px 12px rgba(30,32,48,0.06)',
         'neo-md': '0 2px 8px rgba(30,32,48,0.07), 0 8px 24px rgba(30,32,48,0.08)',
         'neo-lg': '0 4px 16px rgba(30,32,48,0.09), 0 16px 40px rgba(30,32,48,0.10)',
-        'neo-sm-primary': '0 4px 12px rgba(99,102,241,0.35)',
-        'neo-md-primary': '0 6px 18px rgba(99,102,241,0.45)',
+        'neo-sm-primary': '0 6px 16px rgba(0,153,109,0.35)',
+        'neo-md-primary': '0 10px 24px rgba(0,153,109,0.42)',
       },
       fontFamily: {
         sans: ['Pretendard Variable', 'Pretendard', 'Noto Sans KR', 'system-ui', 'sans-serif'],
