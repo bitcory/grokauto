@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { useQueueStore } from '../../store/useQueueStore';
@@ -63,6 +64,11 @@ export default function ActionButtons() {
     cinematicIntro,
   } = useAppStore();
   const { setItems, clearItems } = useQueueStore();
+  const [isStopping, setIsStopping] = useState(false);
+
+  useEffect(() => {
+    if (!isRunning) setIsStopping(false);
+  }, [isRunning]);
 
   const handleClear = () => {
     setPromptText('');
@@ -203,41 +209,66 @@ export default function ActionButtons() {
   };
 
   const handleStop = async () => {
+    setIsStopping(true);
     try {
       await chrome.runtime.sendMessage({ type: 'STOP_AUTOMATION' });
     } catch (err) {
       console.error('Failed to stop automation:', err);
     }
-    setIsRunning(false);
+    // isRunning은 AUTOMATION_DONE 수신 시 App.tsx에서 false로 전환됨
+    // 그 사이 동안 토스트로 "마무리 중" 상태를 사용자에게 전달
   };
 
   return (
-    <div className="px-4 py-3 flex gap-2 border-t border-border bg-white shadow-[0_-1px_8px_rgba(30,32,48,0.05)]">
-      <button
-        onClick={handleClear}
-        disabled={isRunning}
-        className="neo-btn flex-1 py-2.5 gap-1.5 bg-muted text-foreground border-border hover:bg-content2"
-      >
-        <Icon icon="solar:trash-bin-minimalistic-bold" width={14} height={14} />
-        {t('actions.clear')}
-      </button>
-      {isRunning ? (
-        <button
-          onClick={handleStop}
-          className="neo-btn flex-1 py-2.5 gap-1.5 bg-danger text-white border-transparent shadow-[0_4px_12px_rgba(239,68,68,0.35)]"
-        >
-          <Icon icon="solar:stop-bold" width={14} height={14} />
-          {t('actions.stop')}
-        </button>
-      ) : (
-        <button
-          onClick={handleStart}
-          className="neo-btn flex-1 py-2.5 gap-1.5 btn-green-grad"
-        >
-          <Icon icon="solar:play-bold" width={14} height={14} />
-          {t('actions.start')}
-        </button>
+    <div className="border-t border-border bg-white shadow-[0_-1px_8px_rgba(30,32,48,0.05)]">
+      {isStopping && (
+        <div className="px-4 pt-3">
+          <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">
+            <Icon
+              icon="solar:hourglass-line-bold"
+              width={16}
+              height={16}
+              className="mt-0.5 flex-shrink-0 animate-pulse"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] font-semibold leading-tight">
+                {t('actions.stoppingTitle')}
+              </div>
+              <div className="text-[10.5px] leading-tight text-amber-800/85 mt-0.5">
+                {t('actions.stoppingDesc')}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
+      <div className="px-4 py-3 flex gap-2">
+        <button
+          onClick={handleClear}
+          disabled={isRunning}
+          className="neo-btn flex-1 py-2.5 gap-1.5 bg-muted text-foreground border-border hover:bg-content2"
+        >
+          <Icon icon="solar:trash-bin-minimalistic-bold" width={14} height={14} />
+          {t('actions.clear')}
+        </button>
+        {isRunning ? (
+          <button
+            onClick={handleStop}
+            disabled={isStopping}
+            className="neo-btn flex-1 py-2.5 gap-1.5 bg-danger text-white border-transparent shadow-[0_4px_12px_rgba(239,68,68,0.35)] disabled:opacity-60"
+          >
+            <Icon icon="solar:stop-bold" width={14} height={14} />
+            {t('actions.stop')}
+          </button>
+        ) : (
+          <button
+            onClick={handleStart}
+            className="neo-btn flex-1 py-2.5 gap-1.5 btn-green-grad"
+          >
+            <Icon icon="solar:play-bold" width={14} height={14} />
+            {t('actions.start')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

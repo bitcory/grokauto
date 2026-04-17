@@ -2,7 +2,9 @@
   "header": {
     "title": "Grok Automation",
     "version": "V1.9.1",
-    "description": "Grok AI Automation Tool"
+    "description": "Grok AI Automation Tool",
+    "resetTooltip": "Reset",
+    "resetDone": "Reset complete"
   },
   "tabs": {
     "control": "Control",
@@ -118,7 +120,9 @@
     "clear": "Clear",
     "start": "Start",
     "stop": "Stop",
-    "back": "Back"
+    "back": "Back",
+    "stoppingTitle": "Finishing current task...",
+    "stoppingDesc": "The automation will halt once the active generation finishes"
   },
   "settings": {
     "defaultMode": {

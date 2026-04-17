@@ -48,33 +48,36 @@ function generateSessionPrefix(): string {
   return `${y}${mo}${d}_${h}${mi}${s}`;
 }
 
-// Intercept ALL downloads triggered by GrokAuto and assign the correct filename.
+// Intercept ONLY downloads triggered by GrokAuto and assign the correct filename.
 // Both video (Grok button-click) and text-to-image (direct chrome.downloads.download)
-// go through this listener. The listener MUST call suggest() — if it doesn't, Chrome
-// falls back to its own default name (e.g. "다운로드.jpeg") ignoring what we passed
-// in chrome.downloads.download({ filename }).
+// go through this listener while pendingDownloadFolder is armed.
+//
+// IMPORTANT: when the download is NOT ours, do NOT call suggest() at all. Returning
+// false (or nothing) yields control to other extensions / Chrome's default naming.
+// Calling suggest() with no args is interpreted by Chrome as "I want filename = ''",
+// which breaks other download-management extensions installed alongside GrokAuto.
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-  if (pendingDownloadFolder !== null) {
-    const folder = pendingDownloadFolder;
-    // For text-to-image: ext was pre-determined from the data URL MIME type.
-    // For video: ext comes from the download item's filename (e.g. .mp4).
-    const ext = pendingDownloadExt || item.filename.split('.').pop() || 'png';
-    pendingDownloadFolder = null;
-    pendingDownloadExt = null;
-    if (pendingDownloadTimeout) {
-      clearTimeout(pendingDownloadTimeout);
-      pendingDownloadTimeout = null;
-    }
-    downloadCounter++;
-    chrome.storage.session.set({ downloadCounter }).catch(() => {});
-    const numberedName = `${downloadCounter}_${generateSessionPrefix()}.${ext}`;
-    const fullPath = folder ? `${folder}/${numberedName}` : numberedName;
-    suggest({ filename: fullPath });
-    console.log(`[GrokAuto] Download filename set: ${fullPath}`);
-    return;
+  if (pendingDownloadFolder === null) {
+    // Not our download — yield to other extensions / Chrome default
+    return false;
   }
-  // Not our download — pass through without interfering
-  suggest();
+  const folder = pendingDownloadFolder;
+  // For text-to-image: ext was pre-determined from the data URL MIME type.
+  // For video: ext comes from the download item's filename (e.g. .mp4).
+  const ext = pendingDownloadExt || item.filename.split('.').pop() || 'png';
+  pendingDownloadFolder = null;
+  pendingDownloadExt = null;
+  if (pendingDownloadTimeout) {
+    clearTimeout(pendingDownloadTimeout);
+    pendingDownloadTimeout = null;
+  }
+  downloadCounter++;
+  chrome.storage.session.set({ downloadCounter }).catch(() => {});
+  const numberedName = `${downloadCounter}_${generateSessionPrefix()}.${ext}`;
+  const fullPath = folder ? `${folder}/${numberedName}` : numberedName;
+  suggest({ filename: fullPath });
+  console.log(`[GrokAuto] Download filename set: ${fullPath}`);
+  return true;
 });
 
 // Message routing between popup and content scripts

@@ -237,6 +237,28 @@ body {
   100% { opacity: 1; transform: scale(1); }
 }
 
+/* ─── Reset Button: 1 rotation on click ─── */
+.spin-once {
+  animation: spin-once 0.6s ease-in-out;
+}
+
+@keyframes spin-once {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ─── Toast (top-center, auto-fade) ─── */
+.toast-pop {
+  animation: toast-pop 1.5s ease-out forwards;
+}
+
+@keyframes toast-pop {
+  0%   { opacity: 0; transform: translate(-50%, -8px); }
+  15%  { opacity: 1; transform: translate(-50%, 0); }
+  80%  { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+
 /* ─── Scrollbar (5px pill) ─── */
 ::-webkit-scrollbar {
   width: 5px;

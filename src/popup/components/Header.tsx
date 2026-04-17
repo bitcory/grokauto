@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { useQueueStore } from '../../store/useQueueStore';
@@ -6,10 +7,23 @@ import { Icon } from '@iconify/react';
 export default function Header() {
   const { t, i18n } = useTranslation();
   const { language, setLanguage } = useAppStore();
+  const [spinKey, setSpinKey] = useState(0);
+  const [toastKey, setToastKey] = useState(0);
 
   const handleLanguageChange = (lang: 'ko' | 'en') => {
     setLanguage(lang);
     i18n.changeLanguage(lang);
+  };
+
+  const handleReset = async () => {
+    setSpinKey((k) => k + 1);
+    setToastKey((k) => k + 1);
+    useAppStore.getState().setPromptText('');
+    useAppStore.getState().setUploadedImages([]);
+    useQueueStore.getState().clearItems();
+    const allKeys = await chrome.storage.local.get(null);
+    const imgKeys = Object.keys(allKeys).filter((k) => k.startsWith('img_'));
+    if (imgKeys.length > 0) await chrome.storage.local.remove(imgKeys);
   };
 
   return (
@@ -48,21 +62,26 @@ export default function Header() {
               <option value="en" style={{ color: '#0f172a' }}>English</option>
             </select>
             <button
-              onClick={async () => {
-                useAppStore.getState().setPromptText('');
-                useAppStore.getState().setUploadedImages([]);
-                useQueueStore.getState().clearItems();
-                const allKeys = await chrome.storage.local.get(null);
-                const imgKeys = Object.keys(allKeys).filter((k) => k.startsWith('img_'));
-                if (imgKeys.length > 0) await chrome.storage.local.remove(imgKeys);
-              }}
+              onClick={handleReset}
               className="glass-pill w-7 h-7 flex items-center justify-center transition-colors hover:bg-white/25"
-              title="Reset"
+              title={t('header.resetTooltip')}
             >
-              <Icon icon="solar:refresh-bold" width={14} height={14} />
+              <span key={spinKey} className="spin-once inline-flex">
+                <Icon icon="solar:refresh-bold" width={14} height={14} />
+              </span>
             </button>
           </div>
         </div>
+
+        {toastKey > 0 && (
+          <div
+            key={toastKey}
+            className="toast-pop pointer-events-none absolute left-1/2 top-2 z-20 px-3 py-1.5 rounded-full bg-white/95 text-slate-900 text-[11px] font-semibold shadow-lg backdrop-blur-sm flex items-center gap-1.5"
+          >
+            <Icon icon="solar:check-circle-bold" width={13} height={13} className="text-emerald-600" />
+            {t('header.resetDone')}
+          </div>
+        )}
 
         {/* Title */}
         <h1

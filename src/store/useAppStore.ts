@@ -16,7 +16,7 @@ import type {
 } from '../types';
 
 const DEFAULTS = {
-  mode: 'text-to-image' as GenerationMode,
+  mode: 'frame-to-video' as GenerationMode,
   concurrentPrompts: 1,
   delayMin: 5,
   delayMax: 5,

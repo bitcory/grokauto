@@ -2,7 +2,9 @@
   "header": {
     "title": "Grok 자동화",
     "version": "V1.9.1",
-    "description": "Grok AI 자동화 도구"
+    "description": "Grok AI 자동화 도구",
+    "resetTooltip": "초기화",
+    "resetDone": "초기화 완료"
   },
   "tabs": {
     "control": "컨트롤",
@@ -118,7 +120,9 @@
     "clear": "지우기",
     "start": "실행",
     "stop": "중지",
-    "back": "뒤로가기"
+    "back": "뒤로가기",
+    "stoppingTitle": "현재 작업 마무리 중...",
+    "stoppingDesc": "진행 중인 비디오/이미지 생성이 끝나면 자동으로 멈춥니다"
   },
   "settings": {
     "defaultMode": {

@@ -62,6 +62,12 @@ export default function PromptQueue() {
       setUploadedImages(uploadedImages.filter((_, idx) => !imgIndicesToRemove.has(idx)));
     }
 
+    // 큐가 비어 있지 않을 때만 텍스트 박스 동기화 (전체 삭제 시는 기존 텍스트 유지)
+    const remaining = items.filter((item) => !selectedIds.has(item.id));
+    if (remaining.length > 0) {
+      setPromptText(remaining.map((item) => item.text).join('\n\n'));
+    }
+
     removeItems([...selectedIds]);
     setSelectedIds(new Set());
   };
