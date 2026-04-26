@@ -60,6 +60,7 @@ export default function ActionButtons() {
     imageDownloadQuality,
     imageFrameMode,
     imageGenerationSpeed,
+    imageDownloadCount,
     resizeTargetRatio,
     cinematicIntro,
   } = useAppStore();
@@ -199,6 +200,7 @@ export default function ActionButtons() {
           imageDownloadQuality,
           imageFrameMode,
           imageGenerationSpeed,
+          imageDownloadCount,
           resizeTargetRatio: mode === 'resize' ? resizeTargetRatio : undefined,
         },
       });
@@ -217,6 +219,13 @@ export default function ActionButtons() {
     }
     // isRunning은 AUTOMATION_DONE 수신 시 App.tsx에서 false로 전환됨
     // 그 사이 동안 토스트로 "마무리 중" 상태를 사용자에게 전달
+    // 안전장치: 10초 후에도 AUTOMATION_DONE이 안 오면 강제 리셋
+    setTimeout(() => {
+      if (useAppStore.getState().isRunning) {
+        console.warn('[GrokAuto] Stop timeout — forcing isRunning=false');
+        setIsRunning(false);
+      }
+    }, 10000);
   };
 
   return (

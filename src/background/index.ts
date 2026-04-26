@@ -1,4 +1,21 @@
 import type { Message } from '../shared/messages';
+import { installLogRelay, type LogEntry } from '../shared/logger';
+
+// 로그 링버퍼 — 콘텐츠/백그라운드 양쪽의 GrokAuto 태그 로그를 팝업에서 조회.
+const LOG_BUFFER_MAX = 500;
+const logBuffer: LogEntry[] = [];
+function appendLog(entry: LogEntry): void {
+  logBuffer.push(entry);
+  if (logBuffer.length > LOG_BUFFER_MAX) {
+    logBuffer.splice(0, logBuffer.length - LOG_BUFFER_MAX);
+  }
+}
+
+// 백그라운드 자신의 console.log도 캡처 → 버퍼에 저장 + 팝업에 브로드캐스트.
+installLogRelay('background', (entry) => {
+  appendLog(entry);
+  chrome.runtime.sendMessage({ type: 'LOG_ENTRY', payload: entry }).catch(() => {});
+});
 
 console.log('[GrokAuto] Background service worker started');
 
@@ -28,11 +45,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-// Pending download info for intercepting downloads via onDeterminingFilename.
-// Both video (Grok UI button click) and text-to-image (direct chrome.downloads.download)
-// use this same mechanism so the listener can always call suggest() with the right filename.
+// Video path (Grok UI button click) — listener still needed because Grok itself
+// initiates the download and we can't pass a filename to download() ahead of time.
+// Text-to-image path (handleDownload) computes the filename upfront and passes it
+// directly to chrome.downloads.download, so it does NOT arm this state.
 let pendingDownloadFolder: string | null = null;
-let pendingDownloadExt: string | null = null; // pre-determined extension (for data/blob URLs)
+let pendingDownloadExt: string | null = null;
+let pendingDownloadPromptIndex: number | null = null;
 let pendingDownloadTimeout: ReturnType<typeof setTimeout> | null = null;
 let downloadCounter = 0;
 let sessionPrefix = ''; // 세션별 타임스탬프 접두사 (YYYYMMDD_HHmm)
@@ -48,37 +67,102 @@ function generateSessionPrefix(): string {
   return `${y}${mo}${d}_${h}${mi}${s}`;
 }
 
-// Intercept ONLY downloads triggered by GrokAuto and assign the correct filename.
-// Both video (Grok button-click) and text-to-image (direct chrome.downloads.download)
-// go through this listener while pendingDownloadFolder is armed.
-//
-// IMPORTANT: when the download is NOT ours, do NOT call suggest() at all. Returning
-// false (or nothing) yields control to other extensions / Chrome's default naming.
-// Calling suggest() with no args is interpreted by Chrome as "I want filename = ''",
-// which breaks other download-management extensions installed alongside GrokAuto.
-chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
-  if (pendingDownloadFolder === null) {
-    // Not our download — yield to other extensions / Chrome default
+function nextNumberedName(
+  ext: string,
+  opts: { indexSuffix?: number; promptIndex?: number } = {}
+): string {
+  // If promptIndex is given, use it as the leading number so failed prompts
+  // leave gaps in the filename sequence (matching the UI list position).
+  // Otherwise fall back to the running downloadCounter.
+  let leading: number;
+  if (opts.promptIndex != null) {
+    leading = opts.promptIndex;
+    // Still advance the counter so standalone (non-prompt-scoped) downloads
+    // later in the session don't collide with these.
+    downloadCounter = Math.max(downloadCounter, opts.promptIndex);
+  } else {
+    downloadCounter++;
+    leading = downloadCounter;
+  }
+  chrome.storage.session.set({ downloadCounter }).catch(() => {});
+  const suffix = opts.indexSuffix != null ? `_${opts.indexSuffix}` : '';
+  return `${leading}_${generateSessionPrefix()}${suffix}.${ext}`;
+}
+
+function isFromGrok(item: chrome.downloads.DownloadItem): boolean {
+  // 다른 확장이 시작한 다운로드는 우리 것이 아님
+  if (item.byExtensionId) return false;
+
+  const candidates = [item.referrer, item.url, item.finalUrl].filter(Boolean);
+  return candidates.some((u) => {
+    // blob:https://grok.com/... 형태는 'blob:' 접두사 제거
+    const target = u!.startsWith('blob:') ? u!.slice(5) : u!;
+    try {
+      const h = new URL(target).hostname;
+      return h === 'grok.com' || h.endsWith('.grok.com') ||
+             h === 'x.com'    || h.endsWith('.x.com');
+    } catch {
+      return false;
+    }
+  });
+}
+
+// Video path (Grok UI button click): Grok's own DOM click triggers the download,
+// so we can't pass a filename via chrome.downloads.download. We must intercept
+// via onDeterminingFilename. But a permanently-registered listener interferes
+// with other extensions' downloads (Chrome's multi-listener behavior on
+// data:/blob: URLs breaks, producing UUID filenames). Solution: register the
+// listener ONLY during the brief armed window (SET_DOWNLOAD_FOLDER → Grok click
+// → onDeterminingFilename fires) and remove it immediately after.
+const videoFilenameListener = (
+  item: chrome.downloads.DownloadItem,
+  suggest: (arg?: chrome.downloads.DownloadFilenameSuggestion) => void
+): boolean => {
+  // Belt-and-suspenders gates — the listener is only registered when armed
+  // anyway, but defense-in-depth guards against cross-contamination.
+  // referrer 단독 체크는 rel="noreferrer" / blob URL 케이스에서 빈 값이라
+  // Grok 자체 다운로드를 놓치므로 url/finalUrl/referrer 여러 신호를 함께 본다.
+  const isGrokUI = pendingDownloadFolder !== null && isFromGrok(item);
+  if (!isGrokUI) {
+    // 우리 것이 아닌 다운로드엔 suggest() 를 호출하지 않는다.
+    // suggest() 를 호출하면 Chrome 의 멀티-리스너 경합에 참여하게 되어
+    // 다른 확장(예: TOOLB FLOW)의 파일명 주장을 방해한다 (v1.4.5~v1.4.13 회귀 원인).
+    // 그냥 리스너를 떼고 빠지면 다른 리스너의 suggest 가 그대로 살아남는다.
+    detachVideoFilenameListener();
     return false;
   }
-  const folder = pendingDownloadFolder;
-  // For text-to-image: ext was pre-determined from the data URL MIME type.
-  // For video: ext comes from the download item's filename (e.g. .mp4).
-  const ext = pendingDownloadExt || item.filename.split('.').pop() || 'png';
+
+  const folder = pendingDownloadFolder!;
+  const rawExt = pendingDownloadExt || item.filename.split('.').pop() || 'png';
+  // Windows에선 image/jpeg가 .jfif로 제안됨 — .jpg로 정규화
+  const ext = normalizeExt(rawExt);
+  const promptIndex = pendingDownloadPromptIndex ?? undefined;
   pendingDownloadFolder = null;
   pendingDownloadExt = null;
+  pendingDownloadPromptIndex = null;
   if (pendingDownloadTimeout) {
     clearTimeout(pendingDownloadTimeout);
     pendingDownloadTimeout = null;
   }
-  downloadCounter++;
-  chrome.storage.session.set({ downloadCounter }).catch(() => {});
-  const numberedName = `${downloadCounter}_${generateSessionPrefix()}.${ext}`;
-  const fullPath = folder ? `${folder}/${numberedName}` : numberedName;
+  const numbered = nextNumberedName(ext, { promptIndex });
+  const fullPath = folder ? `${folder}/${numbered}` : numbered;
   suggest({ filename: fullPath });
+  detachVideoFilenameListener();
   console.log(`[GrokAuto] Download filename set: ${fullPath}`);
   return true;
-});
+};
+
+function attachVideoFilenameListener(): void {
+  if (!chrome.downloads.onDeterminingFilename.hasListener(videoFilenameListener)) {
+    chrome.downloads.onDeterminingFilename.addListener(videoFilenameListener);
+  }
+}
+
+function detachVideoFilenameListener(): void {
+  if (chrome.downloads.onDeterminingFilename.hasListener(videoFilenameListener)) {
+    chrome.downloads.onDeterminingFilename.removeListener(videoFilenameListener);
+  }
+}
 
 // Message routing between popup and content scripts
 chrome.runtime.onMessage.addListener(
@@ -106,13 +190,18 @@ chrome.runtime.onMessage.addListener(
         break;
 
       case 'SET_DOWNLOAD_FOLDER':
-        // Content script will click download button next
+        // Content script will click Grok's own download button next.
+        // Register the filename listener ONLY for this brief window so we
+        // don't interfere with other extensions' downloads the rest of the time.
         pendingDownloadFolder = (message as any).payload?.folder || null;
-        // Auto-clear after 10s in case download doesn't happen
+        pendingDownloadPromptIndex = (message as any).payload?.promptIndex ?? null;
+        attachVideoFilenameListener();
         if (pendingDownloadTimeout) clearTimeout(pendingDownloadTimeout);
         pendingDownloadTimeout = setTimeout(() => {
           pendingDownloadFolder = null;
+          pendingDownloadPromptIndex = null;
           pendingDownloadTimeout = null;
+          detachVideoFilenameListener();
         }, 10000);
         sendResponse({ ok: true });
         break;
@@ -142,6 +231,22 @@ chrome.runtime.onMessage.addListener(
       case 'AUTOMATION_COMPLETE':
         chrome.runtime.sendMessage({ type: 'AUTOMATION_DONE' }).catch(() => {});
         chrome.action.setBadgeText({ text: '' });
+        sendResponse({ ok: true });
+        break;
+
+      case 'LOG_ENTRY':
+        // 콘텐츠 스크립트가 보낸 로그 — 버퍼에 추가하고 팝업으로 브로드캐스트.
+        // (팝업도 같은 메시지를 직접 수신하지만 버퍼 보관을 위해 백그라운드에서 처리)
+        appendLog(message.payload);
+        sendResponse({ ok: true });
+        break;
+
+      case 'GET_LOG_HISTORY':
+        sendResponse({ ok: true, entries: logBuffer.slice() });
+        break;
+
+      case 'CLEAR_LOG_HISTORY':
+        logBuffer.length = 0;
         sendResponse({ ok: true });
         break;
     }
@@ -179,13 +284,23 @@ async function forwardToGrokTab(message: Message): Promise<{ ok: boolean; error?
 }
 
 /**
+ * jpeg/jfif → jpg 로 통일. (윈도우 레지스트리가 image/jpeg 를 .jfif 로 매핑해서
+ * Chrome 이 다운로드 파일명을 .jfif 로 제안하는 케이스를 흡수.)
+ */
+function normalizeExt(ext: string): string {
+  const e = ext.toLowerCase();
+  if (e === 'jpeg' || e === 'jfif') return 'jpg';
+  return e;
+}
+
+/**
  * Detect file extension from a URL. Falls back to 'png' for image downloads.
  */
 function detectExtFromUrl(url: string, fallback = 'png'): string {
   // data: URL → infer from MIME
   if (url.startsWith('data:')) {
     const m = url.match(/^data:image\/([a-z0-9+]+)/i);
-    if (m) return m[1].toLowerCase().replace('jpeg', 'jpg');
+    if (m) return normalizeExt(m[1]);
     return fallback;
   }
   // strip query/hash, then take last segment
@@ -195,7 +310,7 @@ function detectExtFromUrl(url: string, fallback = 'png'): string {
   if (dot < 0) return fallback;
   const ext = last.slice(dot + 1).toLowerCase();
   if (!/^[a-z0-9]{1,5}$/.test(ext)) return fallback;
-  return ext;
+  return normalizeExt(ext);
 }
 
 /**
@@ -212,17 +327,20 @@ function sanitizeFolder(folder: string | undefined): string {
 }
 
 /**
- * Handle file download via chrome.downloads API.
+ * Handle text-to-image download via chrome.downloads API.
  * - For data: URLs, fetch into a Blob and use a blob URL (more reliable in MV3
  *   service workers than passing huge data URLs to chrome.downloads.download).
- * - Arms pendingDownloadFolder/Ext so the onDeterminingFilename listener
- *   assigns the correct numbered filename and folder path.
+ * - Filename is computed upfront and passed directly to download() — no
+ *   onDeterminingFilename coordination needed. This keeps GrokAuto from
+ *   competing with other extensions' listeners (e.g. TOOLB FLOW on labs.google).
  */
 async function handleDownload(payload: {
   url: string;
   folder: string;
+  indexSuffix?: number;
+  promptIndex?: number;
 }): Promise<void> {
-  const { url } = payload;
+  const { url, indexSuffix, promptIndex } = payload;
   const folder = sanitizeFolder(payload.folder);
   const ext = detectExtFromUrl(url, 'png');
 
@@ -248,21 +366,15 @@ async function handleDownload(payload: {
     }
   }
 
-  // 2. Arm the interceptor RIGHT BEFORE triggering the download
-  pendingDownloadFolder = folder;
-  pendingDownloadExt = ext;
-  if (pendingDownloadTimeout) clearTimeout(pendingDownloadTimeout);
-  pendingDownloadTimeout = setTimeout(() => {
-    pendingDownloadFolder = null;
-    pendingDownloadExt = null;
-    pendingDownloadTimeout = null;
-  }, 10000);
+  // 2. Compute filename upfront (blob URL initiated from the service worker has
+  //    no Grok-page referrer, so the listener above won't claim this download).
+  const numbered = nextNumberedName(ext, { indexSuffix, promptIndex });
+  const filename = folder ? `${folder}/${numbered}` : numbered;
 
-  // 3. Trigger download — DO NOT set filename here; the onDeterminingFilename
-  //    listener will call suggest() with the correct folder/numbered filename.
   chrome.downloads.download(
     {
       url: downloadUrl,
+      filename,
       saveAs: false,
     },
     (downloadId) => {
@@ -272,9 +384,10 @@ async function handleDownload(payload: {
           chrome.runtime.lastError.message
         );
       } else {
-        console.log(`[GrokAuto] Download started (ID: ${downloadId})`);
+        console.log(
+          `[GrokAuto] Download started (ID: ${downloadId}) → ${filename}`
+        );
       }
-      // Revoke the blob URL after Chrome has had a chance to read it
       if (createdBlobUrl) {
         setTimeout(() => {
           URL.revokeObjectURL(createdBlobUrl!);

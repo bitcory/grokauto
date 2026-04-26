@@ -70,10 +70,37 @@ export default function ImageUpload() {
 
   if (!needsImage) return null;
 
+  // 모드별 라벨과 안내 문구
+  const uploadLabel = (() => {
+    if (mode === 'frame-to-video') {
+      return imageFrameMode === 'start-end'
+        ? t('image.uploadLabel.frameStartEnd')
+        : t('image.uploadLabel.frameStart');
+    }
+    if (mode === 'image-to-image') return t('image.uploadLabel.i2i');
+    if (mode === 'remix-video') return t('image.uploadLabel.remix');
+    if (mode === 'resize') return t('image.uploadLabel.resize');
+    if (mode === 'cinematic-intro') return t('image.uploadLabel.cinematic');
+    return t('image.upload');
+  })();
+
+  const uploadHint = (() => {
+    if (mode === 'frame-to-video') {
+      return imageFrameMode === 'start-end'
+        ? t('image.uploadHint.frameStartEnd')
+        : t('image.uploadHint.frameStart');
+    }
+    if (mode === 'image-to-image') return t('image.uploadHint.i2i');
+    if (mode === 'remix-video') return t('image.uploadHint.remix');
+    if (mode === 'resize') return t('image.uploadHint.resize');
+    if (mode === 'cinematic-intro') return t('image.uploadHint.cinematic');
+    return t('image.dragDrop');
+  })();
+
   return (
     <div className="px-4 py-2">
       <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 block">
-        {t('image.upload')}
+        {uploadLabel}
       </label>
 
       <div
@@ -84,7 +111,7 @@ export default function ImageUpload() {
                    hover:border-primary hover:bg-primary/5 transition-all duration-200"
       >
         <Icon icon="solar:upload-bold" width={20} height={20} className="mx-auto mb-1 text-muted-foreground" />
-        <p className="text-[10px] text-muted-foreground font-medium">{t('image.dragDrop')}</p>
+        <p className="text-[10px] text-muted-foreground font-medium">{uploadHint}</p>
         <input
           ref={fileInputRef}
           type="file"

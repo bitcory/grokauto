@@ -29,7 +29,9 @@ export const SELECTORS = {
     'form div.absolute.right-2.bottom-0',
   ],
   sendButton: [
+    'button[aria-label="제출"]',
     'button[aria-label="Send"]',
+    'button[aria-label="Submit"]',
     'button[data-testid="send-button"]',
   ],
 

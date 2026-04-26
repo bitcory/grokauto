@@ -1,6 +1,6 @@
 {
   "name": "grokauto",
-  "version": "1.9.1",
+  "version": "2.0.2",
   "description": "Grok Automation - Batch image/video generation on grok.com",
   "type": "module",
   "scripts": {
@@ -30,5 +30,8 @@
     "tailwindcss": "^3.4.16",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.60.2"
   }
 }

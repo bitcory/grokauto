@@ -145,7 +145,7 @@ export default function PromptQueue() {
 
       {/* 아이템 목록 */}
       <div className="space-y-1">
-        {items.map((item) => {
+        {items.map((item, idx) => {
           const selected = selectedIds.has(item.id);
           return (
             <div
@@ -167,6 +167,10 @@ export default function PromptQueue() {
                   {selected && <Icon icon="solar:check-read-bold" width={8} height={8} className="text-white" />}
                 </div>
               )}
+              {/* 프롬프트 순번 — 저장 파일명의 앞번호와 동일하게 매칭됨 */}
+              <span className="min-w-[18px] text-right font-semibold tabular-nums text-muted-foreground flex-shrink-0">
+                {idx + 1}
+              </span>
               <span
                 className={cn(
                   'w-1.5 h-1.5 rounded-full flex-shrink-0',

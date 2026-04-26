@@ -1,14 +1,15 @@
 {
   "header": {
     "title": "Grok Automation",
-    "version": "V1.9.1",
+    "version": "V2.0.2",
     "description": "Grok AI Automation Tool",
     "resetTooltip": "Reset",
     "resetDone": "Reset complete"
   },
   "tabs": {
     "control": "Control",
-    "settings": "Settings"
+    "settings": "Settings",
+    "logs": "Logs"
   },
   "mode": {
     "label": "Generation Mode",
@@ -21,7 +22,23 @@
     "talking-video": "Talking Video",
     "cinematic-intro": "Cinematic Intro",
     "resizeRatio": "Target Ratio",
-    "aspectRatio": "Aspect Ratio"
+    "aspectRatio": "Aspect Ratio",
+    "duration": "Duration",
+    "group": {
+      "image": "Image",
+      "video": "Video",
+      "advanced": "Advanced"
+    },
+    "hint": {
+      "text-to-image": "Generate images from a prompt. Quality mode = 4 images, Speed mode = many.",
+      "image-to-image": "Transform a reference image into 2 new images.",
+      "resize": "Change image aspect ratio (background is naturally extended).",
+      "text-to-video": "Generate a video from a prompt.",
+      "frame-to-video": "Use one image (or start+end pair) as the video's first frame.",
+      "remix-video": "Remix an existing video with a prompt.",
+      "talking-video": "Fill character/scene/dialogue form → auto-generates prompts and switches mode.",
+      "cinematic-intro": "Paste JSON to batch-generate multi-scene intros."
+    }
   },
   "talkingVideo": {
     "type": {
@@ -46,7 +63,22 @@
     "interviewerLine": "Interviewer line (optional)",
     "characterLine": "Character line *",
     "genImage": "Image Prompt",
-    "genVideo": "Video Prompt"
+    "genVideo": "Video Prompt",
+    "genImageHint": "Generates prompt and switches to Text→Image mode",
+    "genVideoHint": "Generates prompt and switches to Image→Video mode",
+    "genHint": "Clicking switches to another mode (use ← Back next to mode selector to return)",
+    "presets": "Quick-start Presets",
+    "preset": {
+      "babyKorean": "Korean Baby",
+      "kpopTrainee": "K-pop Trainee",
+      "officeWorker": "Office Worker"
+    },
+    "section": {
+      "character": "Character",
+      "scene": "Scene / Expression",
+      "camera": "Camera / Language",
+      "interviewer": "Interviewer"
+    }
   },
   "cinematicIntro": {
     "jsonPlaceholder": "Paste cinematic intro JSON here...",
@@ -87,7 +119,23 @@
     "startOnly": "Use start frame only",
     "startEnd": "Use start and end frames",
     "startLabel": "Start",
-    "endLabel": "End"
+    "endLabel": "End",
+    "uploadLabel": {
+      "frameStart": "Start Frame Image",
+      "frameStartEnd": "Start + End Frame Images (pairs)",
+      "i2i": "Reference Image",
+      "remix": "Source Image for Remix",
+      "resize": "Image to Resize",
+      "cinematic": "Shared Reference (optional)"
+    },
+    "uploadHint": {
+      "frameStart": "Drag or click to upload the image used as the first frame",
+      "frameStartEnd": "Each prompt needs 2 images — trailing filename numbers set order",
+      "i2i": "Upload a reference image to transform",
+      "remix": "Upload the source video/image to remix",
+      "resize": "Upload the image whose aspect ratio you want to change",
+      "cinematic": "Optional shared reference image for every scene"
+    }
   },
   "output": {
     "label": "Output Settings",
@@ -125,6 +173,11 @@
     "stoppingDesc": "The automation will halt once the active generation finishes"
   },
   "settings": {
+    "group": {
+      "essentials": "Essentials",
+      "advanced": "Advanced",
+      "environment": "Environment"
+    },
     "defaultMode": {
       "label": "Default Mode",
       "desc": "Default mode when creating new content."
@@ -167,6 +220,12 @@
       "desc": "Speed is faster but lower quality, Quality is slower but higher quality",
       "speed": "Speed",
       "quality": "Quality"
+    },
+    "imageDownloadCount": {
+      "label": "Image Download Count",
+      "desc": "Quality mode produces 4 images (t2i) or 2 images (i2i) per prompt. Save only the first or all with _1/_2/... suffixes",
+      "first": "First only",
+      "all": "All"
     },
     "language": {
       "label": "Language",

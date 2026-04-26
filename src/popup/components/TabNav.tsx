@@ -10,6 +10,7 @@ export default function TabNav() {
   const tabs: { key: TabType; label: string }[] = [
     { key: 'control', label: t('tabs.control') },
     { key: 'settings', label: t('tabs.settings') },
+    { key: 'logs', label: t('tabs.logs') },
   ];
 
   return (

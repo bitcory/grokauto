@@ -1,4 +1,6 @@
 import { querySelector } from './selectors';
+import { isStopRequested } from '../stopSignal';
+import { getImageToImageGeneratedUrls, getTextToImageGeneratedUrls } from './resultCapture';
 
 /**
  * Detect and dismiss the video feedback/comparison screen ("어떤 동영상을 남겨두고 싶으신가요?")
@@ -147,9 +149,16 @@ export function waitForGenerationComplete(
 
     const checkInterval = setInterval(() => {
       if (settled) { clearInterval(checkInterval); return; }
+      if (isStopRequested()) {
+        clearInterval(checkInterval);
+        cleanup();
+        console.log('[GrokAuto] waitForGenerationComplete: stop requested, aborting');
+        resolve('timeout');
+        return;
+      }
       dismissFeedbackScreen();
       tryResolve();
-    }, 2000);
+    }, 500);
 
     timeoutId = setTimeout(() => {
       if (!settled) {
@@ -165,57 +174,61 @@ export function waitForGenerationComplete(
 export interface TextToImageDetection {
   status: GenerationResult;
   imageUrl?: string;
+  /** All new "Generated image" URLs in the masonry that weren't in the baseline. */
+  imageUrls?: string[];
+}
+
+/**
+ * Snapshot the current set of t2i result image URLs so a subsequent
+ * `waitForTextToImageResult` call can distinguish NEW generations from stale
+ * ones left over in the DOM from a previous session.
+ */
+export function snapshotTextToImageBaseline(): Set<string> {
+  const set = new Set<string>();
+  document
+    .querySelectorAll('[id^="imagine-masonry-section-"] img[alt="Generated image"]')
+    .forEach((el) => {
+      const src = (el as HTMLImageElement).src;
+      if (src) set.add(src);
+    });
+  return set;
 }
 
 /**
  * Fast-path generation detection for text-to-image mode.
  *
- * Grok's /imagine page is an SPA, so the previous generation's <img> element
- * (with its base64 data URL src) often persists in the masonry section across
- * "new session" navigations. To avoid falsely matching that stale image, we
- * snapshot every existing data: URL in the masonry sections at the moment this
- * wait begins, then resolve only when an <img> with a src that's NOT in that
- * snapshot appears.
+ * Grok renders new generations as <img alt="Generated image"> inside the
+ * `#imagine-masonry-section-*` container. Quality mode outputs 4 such images;
+ * Speed mode outputs many (Discover-style).
  *
- * Resolves with:
- * - { status: 'completed', imageUrl } → a new data:image src appeared
- * - { status: 'content-hidden' }      → moderation eye-off icon appeared
- * - { status: 'timeout' }             → neither happened within timeoutMs
+ * This function uses `alt="Generated image"` to filter out Discover/gallery
+ * results, and the caller-supplied `baseline` set (pre-submit snapshot) to
+ * ignore any images left over from a prior session.
+ *
+ * When `expectedCount` is passed, the function waits for at least that many
+ * NEW images with stable src. Otherwise it resolves as soon as one stable
+ * new image is found.
  */
 export function waitForTextToImageResult(
-  timeoutMs: number = 120000
+  timeoutMs: number = 120000,
+  baseline?: Set<string>,
+  expectedCount?: number
 ): Promise<TextToImageDetection> {
-  // 프롬프트 제출 직후에 호출되는 함수이다.
-  // Grok은 SPA이므로 이전 세션의 이미지가 DOM에 잔존할 수 있고,
-  // 페이지 전환 과정에서 기존 이미지를 새 data URL로 리렌더하기도 한다.
-  // 따라서:
-  //  1) 기존 data URL을 baseline으로 캡처해서 "새 이미지"의 기준을 잡고
-  //  2) MIN_WAIT 동안은 매칭하지 않아서 서버가 실제 생성을 시작할 시간을 확보
-  //  3) 이후 baseline에 없는 새 src가 나타나면 비로소 완료 처리
-
-  const MIN_WAIT = 8000; // 최소 8초 대기 — 서버 생성 시작까지 여유
-  const STABLE_MS = 2000; // 후보 src가 이 시간 동안 변하지 않아야 "완전 생성"으로 인정
+  const MIN_WAIT = 6000; // 최소 6s 서버 반응 대기
+  const STABLE_MS = 2000; // 후보 집합이 이 시간 동안 변하지 않으면 완료
 
   return new Promise((resolve) => {
-    // Snapshot existing data URL images so we ignore the previous generation
-    const initialSrcs = new Set<string>();
-    document
-      .querySelectorAll('[id^="imagine-masonry-section-"] img')
-      .forEach((el) => {
-        const src = (el as HTMLImageElement).src;
-        if (src && src.startsWith('data:image/')) initialSrcs.add(src);
-      });
+    const initialSrcs = baseline ?? new Set<string>();
     console.log(
-      `[GrokAuto] Text-to-image baseline: ${initialSrcs.size} pre-existing image(s) to ignore`
+      `[GrokAuto] Text-to-image baseline: ${initialSrcs.size} pre-existing image(s) to ignore, expectedCount=${expectedCount ?? 'any'}`
     );
 
     const startTime = Date.now();
     let settled = false;
 
-    // 후보가 발견되면 src가 안정화될 때까지 추적
-    let candidateImg: HTMLImageElement | null = null;
-    let candidateSrc: string | null = null;
-    let candidateSince = 0;
+    // 다중 이미지 안정화: 발견된 src set이 STABLE_MS 동안 변하지 않아야 완료
+    let lastSetKey = '';
+    let lastChangeAt = 0;
 
     const cleanup = () => {
       settled = true;
@@ -224,14 +237,31 @@ export function waitForTextToImageResult(
       clearInterval(pollId);
     };
 
-    const isFullyLoaded = (img: HTMLImageElement): boolean =>
-      img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
+    const collectNew = (): { srcs: string[]; allLoaded: boolean } => {
+      const imgs = Array.from(
+        document.querySelectorAll('[id^="imagine-masonry-section-"] img[alt="Generated image"]')
+      ) as HTMLImageElement[];
+      const srcs: string[] = [];
+      let allLoaded = true;
+      for (const img of imgs) {
+        if (!img.src) continue;
+        if (initialSrcs.has(img.src)) continue;
+        srcs.push(img.src);
+        if (!img.complete || img.naturalWidth === 0) allLoaded = false;
+      }
+      return { srcs, allLoaded };
+    };
 
     const check = () => {
       if (settled) return;
+      if (isStopRequested()) {
+        console.log('[GrokAuto] waitForTextToImageResult: stop requested, aborting');
+        cleanup();
+        resolve({ status: 'timeout' });
+        return;
+      }
       const elapsed = Date.now() - startTime;
 
-      // Moderation block — always check, even during MIN_WAIT
       if (document.querySelector('svg.lucide-eye-off')) {
         console.log(
           `[GrokAuto] Text-to-image: content hidden (${Math.round(elapsed / 1000)}s)`
@@ -241,71 +271,39 @@ export function waitForTextToImageResult(
         return;
       }
 
-      // Don't match images until MIN_WAIT has passed,
-      // to ensure grok has actually started generating (not just re-rendering old results)
       if (elapsed < MIN_WAIT) return;
 
-      // Look for any data URL <img> that wasn't in the baseline snapshot
-      const allImgs = document.querySelectorAll(
-        '[id^="imagine-masonry-section-"] img'
-      );
-      let found: { img: HTMLImageElement; src: string } | null = null;
-      for (const el of allImgs) {
-        const img = el as HTMLImageElement;
-        const src = img.src;
-        if (
-          src &&
-          src.startsWith('data:image/') &&
-          src.length > 1000 &&
-          !initialSrcs.has(src)
-        ) {
-          found = { img, src };
-          break;
-        }
-      }
+      const { srcs, allLoaded } = collectNew();
+      if (srcs.length === 0) return;
+      if (expectedCount != null && srcs.length < expectedCount) return;
 
-      if (!found) {
-        // 후보가 사라졌다면 초기화 (DOM 리렌더링 등)
-        if (candidateImg) {
-          candidateImg = null;
-          candidateSrc = null;
-        }
+      // 집합 변화 감지 (set의 정렬된 해시로 비교)
+      const key = [...srcs].sort().join('|');
+      if (key !== lastSetKey) {
+        lastSetKey = key;
+        lastChangeAt = Date.now();
         return;
       }
 
-      // 새 후보로 갱신 또는 기존 후보의 src 변경 시 타이머 리셋
-      if (candidateSrc !== found.src) {
-        candidateImg = found.img;
-        candidateSrc = found.src;
-        candidateSince = Date.now();
-        console.log(
-          `[GrokAuto] Text-to-image candidate detected at ${Math.round(elapsed / 1000)}s — waiting for stabilization (${STABLE_MS}ms)`
-        );
-        return;
-      }
-
-      // src가 유지되었는지 + 이미지가 실제로 디코드 완료인지 확인
-      const stableFor = Date.now() - candidateSince;
+      const stableFor = Date.now() - lastChangeAt;
       if (stableFor < STABLE_MS) return;
-      if (!candidateImg || !isFullyLoaded(candidateImg)) return;
+      if (!allLoaded) return;
 
       console.log(
-        `[GrokAuto] Text-to-image FULLY generated in ${Math.round(elapsed / 1000)}s (stable ${Math.round(stableFor / 1000)}s, ${candidateImg.naturalWidth}×${candidateImg.naturalHeight})`
+        `[GrokAuto] Text-to-image complete: ${srcs.length} image(s) in ${Math.round(elapsed / 1000)}s (stable ${Math.round(stableFor / 1000)}s)`
       );
       cleanup();
-      resolve({ status: 'completed', imageUrl: candidateSrc });
+      resolve({ status: 'completed', imageUrl: srcs[0], imageUrls: srcs });
     };
 
-    // MutationObserver for real-time DOM changes
     const observer = new MutationObserver(check);
     observer.observe(document.body, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['src', 'class'],
+      attributeFilter: ['src', 'class', 'alt'],
     });
 
-    // 추가 폴링 — 후보 안정화 판정을 빠르게 잡기 위해 500ms 간격
     const pollId = setInterval(check, 500);
 
     const timeoutId = setTimeout(() => {
@@ -316,9 +314,167 @@ export function waitForTextToImageResult(
       }
     }, timeoutMs);
 
-    // Initial check (MIN_WAIT 때문에 즉시 매칭은 안 됨)
     check();
   });
+}
+
+/**
+ * Wait for a video generation to fully complete.
+ *
+ * Measured Grok behavior (2026-04):
+ *  - On submit, page stays on /imagine briefly, then navigates to
+ *    /imagine/post/{uuid} once the server accepts the request.
+ *  - At that moment a <video> element appears with a valid https:// src,
+ *    then its `readyState` climbs to 4 within ~1-2s.
+ *  - The old `span.tabular-nums.animate-pulse` progress indicator no longer
+ *    exists in Grok's current UI, so completion is detected by URL + readyState.
+ *
+ * Phase 1: wait up to `urlTimeoutMs` for the /post/ URL change.
+ * Phase 2: wait for the last <article> <video> readyState >= 2 + videoWidth > 0.
+ * Phase 3: 2s settle.
+ */
+export function waitForVideoComplete(
+  timeoutMs: number = 240000,
+  urlTimeoutMs: number = 120000
+): Promise<GenerationResult> {
+  return new Promise(async (resolve) => {
+    const startTime = Date.now();
+
+    // Phase 1: URL change
+    while (Date.now() - startTime < urlTimeoutMs) {
+      if (isStopRequested()) {
+        console.log('[GrokAuto] waitForVideoComplete: stop requested (phase 1)');
+        resolve('timeout');
+        return;
+      }
+      if (document.querySelector('svg.lucide-eye-off')) {
+        resolve('content-hidden');
+        return;
+      }
+      if (location.pathname.startsWith('/imagine/post/')) break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!location.pathname.startsWith('/imagine/post/')) {
+      console.log('[GrokAuto] waitForVideoComplete: URL never changed to /imagine/post/');
+      resolve('timeout');
+      return;
+    }
+    const urlAt = Date.now() - startTime;
+
+    // Phase 2: video playable
+    while (Date.now() - startTime < timeoutMs) {
+      if (isStopRequested()) {
+        console.log('[GrokAuto] waitForVideoComplete: stop requested (phase 2)');
+        resolve('timeout');
+        return;
+      }
+      if (document.querySelector('svg.lucide-eye-off')) {
+        resolve('content-hidden');
+        return;
+      }
+      const videos = Array.from(document.querySelectorAll('article video')) as HTMLVideoElement[];
+      const ready = videos.find((v) => {
+        const src = v.src || v.querySelector('source')?.src || '';
+        return src.startsWith('http') && v.readyState >= 2 && (v.videoWidth || 0) > 0;
+      });
+      if (ready) {
+        const readyAt = Date.now() - startTime;
+        await new Promise((r) => setTimeout(r, 2000)); // settle
+        console.log(
+          `[GrokAuto] Video complete: url@${Math.round(urlAt / 1000)}s, ready@${Math.round(readyAt / 1000)}s`
+        );
+        resolve('completed');
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    console.log('[GrokAuto] waitForVideoComplete: video never reached readyState≥2');
+    resolve('timeout');
+  });
+}
+
+/**
+ * Wait for image-to-image generation to complete.
+ *
+ * Measured Grok behavior (2026-04):
+ *  - Submit → URL changes to /imagine/post/{uuid}
+ *  - Result article contains: 1 reference image + N generated images
+ *    (currently N=2, matched by URL containing "/generated/").
+ *  - Each generated image is a cacheable https:// URL, loads in ~1s.
+ */
+export interface ImageToImageDetection {
+  status: GenerationResult;
+  urls?: string[];
+}
+
+export function waitForImageToImageComplete(
+  timeoutMs: number = 120000,
+  urlTimeoutMs: number = 60000,
+  expectedCount: number = 2
+): Promise<ImageToImageDetection> {
+  return new Promise(async (resolve) => {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < urlTimeoutMs) {
+      if (isStopRequested()) {
+        resolve({ status: 'timeout' });
+        return;
+      }
+      if (document.querySelector('svg.lucide-eye-off')) {
+        resolve({ status: 'content-hidden' });
+        return;
+      }
+      if (location.pathname.startsWith('/imagine/post/')) break;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    if (!location.pathname.startsWith('/imagine/post/')) {
+      console.log('[GrokAuto] waitForImageToImageComplete: URL never changed');
+      resolve({ status: 'timeout' });
+      return;
+    }
+
+    while (Date.now() - startTime < timeoutMs) {
+      if (isStopRequested()) {
+        resolve({ status: 'timeout' });
+        return;
+      }
+      if (document.querySelector('svg.lucide-eye-off')) {
+        resolve({ status: 'content-hidden' });
+        return;
+      }
+      const urls = getImageToImageGeneratedUrls();
+      if (urls.length >= expectedCount) {
+        const articles = document.querySelectorAll('article');
+        const lastArticle = articles[articles.length - 1];
+        const imgs = lastArticle
+          ? (Array.from(
+              lastArticle.querySelectorAll('img')
+            ) as HTMLImageElement[]).filter((i) => i.src.includes('/generated/'))
+          : [];
+        const allLoaded = imgs.length >= expectedCount && imgs.every((i) => i.complete && i.naturalWidth > 0);
+        if (allLoaded) {
+          await new Promise((r) => setTimeout(r, 1000));
+          console.log(
+            `[GrokAuto] i2i complete: ${urls.length} image(s) in ${Math.round((Date.now() - startTime) / 1000)}s`
+          );
+          resolve({ status: 'completed', urls });
+          return;
+        }
+      }
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    console.log('[GrokAuto] waitForImageToImageComplete: timeout');
+    resolve({ status: 'timeout' });
+  });
+}
+
+/**
+ * @deprecated The `span.tabular-nums.animate-pulse` indicator no longer exists
+ * in the current Grok UI. Keep exports for backward compatibility; always
+ * returns null / true.
+ */
+export function readVideoProgress(): number | null {
+  return null;
 }
 
 /**
@@ -356,6 +512,11 @@ export function waitForImageFullyLoaded(timeoutMs: number = 30000): Promise<bool
     const startTime = Date.now();
 
     const check = () => {
+      if (isStopRequested()) {
+        console.log('[GrokAuto] waitForImageFullyLoaded: stop requested, aborting');
+        resolve(false);
+        return;
+      }
       if (Date.now() - startTime > timeoutMs) {
         console.warn('[GrokAuto] Image loading timed out');
         resolve(false);
@@ -448,6 +609,11 @@ export function waitForCloudflareChallenge(timeoutMs: number = 300000): Promise<
     const startTime = Date.now();
 
     const poll = () => {
+      if (isStopRequested()) {
+        console.log('[GrokAuto] waitForCloudflareChallenge: stop requested, aborting');
+        resolve(false);
+        return;
+      }
       if (Date.now() - startTime > timeoutMs) {
         console.warn('[GrokAuto] Cloudflare challenge wait timed out');
         resolve(false);
@@ -468,80 +634,23 @@ export function waitForCloudflareChallenge(timeoutMs: number = 300000): Promise<
 }
 
 /**
- * Detect if the video generation progress indicator is visible.
- * Targets: span.tabular-nums.animate-pulse (e.g. "15%")
+ * @deprecated The progress indicator this used to look for no longer exists
+ * in Grok's UI. Retained as a no-op for any stale callers.
  */
 function isVideoProgressVisible(): boolean {
   return !!document.querySelector('span.tabular-nums.animate-pulse');
 }
 
 /**
- * Read the current generation progress percentage from the DOM.
- * Returns null if the indicator is not visible.
- */
-export function readVideoProgress(): number | null {
-  const span = document.querySelector('span.tabular-nums.animate-pulse') as HTMLElement | null;
-  if (!span) return null;
-  const match = span.innerText?.trim().match(/(\d+)/);
-  return match ? parseInt(match[1], 10) : null;
-}
-
-/**
- * Wait for the video generation progress indicator to disappear.
- * Used to trigger upscaling the moment generation finishes.
- * Falls back to a max timeout if the indicator was never detected.
+ * @deprecated Grok UI no longer exposes the video progress indicator.
+ * Retained for backward compatibility so callers that still import it still link.
+ * Returns true immediately.
  */
 export function waitForVideoProgressGone(
-  timeoutMs: number = 180000,
-  onProgress?: (pct: number) => void
+  _timeoutMs: number = 180000,
+  _onProgress?: (pct: number) => void
 ): Promise<boolean> {
-  return new Promise((resolve) => {
-    const startTime = Date.now();
-
-    let indicatorSeen = false;
-    const appearDeadline = Date.now() + 5000;
-    let lastPct = -1;
-
-    const check = () => {
-      const elapsed = Date.now() - startTime;
-
-      if (elapsed > timeoutMs) {
-        console.warn('[GrokAuto] waitForVideoProgressGone: timed out');
-        resolve(false);
-        return;
-      }
-
-      const visible = isVideoProgressVisible();
-
-      if (visible) {
-        indicatorSeen = true;
-        // 진행률 변화 시 콜백 호출
-        if (onProgress) {
-          const pct = readVideoProgress();
-          if (pct !== null && pct !== lastPct) {
-            lastPct = pct;
-            onProgress(pct);
-          }
-        }
-      }
-
-      if (indicatorSeen && !visible) {
-        console.log(`[GrokAuto] Video progress indicator gone (${Math.round(elapsed / 1000)}s)`);
-        resolve(true);
-        return;
-      }
-
-      if (!indicatorSeen && Date.now() > appearDeadline) {
-        console.log('[GrokAuto] Video progress indicator never detected — assuming done');
-        resolve(true);
-        return;
-      }
-
-      setTimeout(check, 300);
-    };
-
-    check();
-  });
+  return Promise.resolve(true);
 }
 
 /**

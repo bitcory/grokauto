@@ -8,6 +8,7 @@ import type {
   ImageFrameMode,
   ImageRefMode,
   ImageGenerationSpeed,
+  ImageDownloadCount,
   ResizeRatio,
   TalkingVideoState,
   TalkingVideoScene,
@@ -35,6 +36,7 @@ const DEFAULTS = {
   imageFrameMode: 'start-only' as ImageFrameMode,
   resizeTargetRatio: '16:9' as ResizeRatio,
   imageGenerationSpeed: 'quality' as ImageGenerationSpeed,
+  imageDownloadCount: 'first' as ImageDownloadCount,
 };
 
 interface AppState {
@@ -98,6 +100,8 @@ interface AppState {
   setResizeTargetRatio: (r: ResizeRatio) => void;
   imageGenerationSpeed: ImageGenerationSpeed;
   setImageGenerationSpeed: (s: ImageGenerationSpeed) => void;
+  imageDownloadCount: ImageDownloadCount;
+  setImageDownloadCount: (c: ImageDownloadCount) => void;
 
   // Language
   language: 'ko' | 'en';
@@ -279,6 +283,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().saveToStorage();
   },
 
+  imageDownloadCount: DEFAULTS.imageDownloadCount,
+  setImageDownloadCount: (c) => {
+    set({ imageDownloadCount: c });
+    get().saveToStorage();
+  },
+
   language: DEFAULTS.language,
   setLanguage: (lang) => {
     set({ language: lang });
@@ -367,6 +377,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       imageFrameMode: DEFAULTS.imageFrameMode,
       resizeTargetRatio: DEFAULTS.resizeTargetRatio,
       imageGenerationSpeed: DEFAULTS.imageGenerationSpeed,
+      imageDownloadCount: DEFAULTS.imageDownloadCount,
     });
     get().saveToStorage();
   },
@@ -392,6 +403,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           imageFrameMode: data.imageFrameMode ?? DEFAULTS.imageFrameMode,
           resizeTargetRatio: data.resizeTargetRatio ?? DEFAULTS.resizeTargetRatio,
           imageGenerationSpeed: data.imageGenerationSpeed ?? DEFAULTS.imageGenerationSpeed,
+          imageDownloadCount: data.imageDownloadCount ?? DEFAULTS.imageDownloadCount,
         });
       }
     } catch {
@@ -419,6 +431,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           imageFrameMode: s.imageFrameMode,
           resizeTargetRatio: s.resizeTargetRatio,
           imageGenerationSpeed: s.imageGenerationSpeed,
+          imageDownloadCount: s.imageDownloadCount,
         },
       });
     } catch {

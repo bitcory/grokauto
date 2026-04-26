@@ -1,7 +1,67 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../../store/useAppStore';
 import { Icon } from '@iconify/react';
 import { cn } from '../../utils/cn';
+import type { TalkingVideoState } from '../../types';
+
+// 3 one-click presets to fill character/setting fields. Users copy-then-tweak.
+type Preset = Pick<
+  TalkingVideoState,
+  'characterName' | 'clothing' | 'setting' | 'cameraAngle' | 'expression' | 'interviewerRole'
+> & { key: string };
+
+const PRESETS: Preset[] = [
+  {
+    key: 'babyKorean',
+    characterName: '2-year-old Korean baby girl',
+    clothing: 'pastel yellow knit sweater and denim overalls',
+    setting: 'cozy sunlit living room with indoor plants',
+    cameraAngle: 'waist',
+    expression: 'bright, innocent smile',
+    interviewerRole: '20s woman Interviewer',
+  },
+  {
+    key: 'kpopTrainee',
+    characterName: '20-year-old Korean female K-pop trainee',
+    clothing: 'oversized white t-shirt and black athletic shorts',
+    setting: 'mirrored dance practice room with warm LED lighting',
+    cameraAngle: 'mid',
+    expression: 'confident, determined look',
+    interviewerRole: 'Music magazine reporter',
+  },
+  {
+    key: 'officeWorker',
+    characterName: '30s Korean male office worker',
+    clothing: 'light-gray blazer over a white shirt, no tie',
+    setting: 'modern open-plan office with soft window light',
+    cameraAngle: 'waist',
+    expression: 'calm, friendly professional smile',
+    interviewerRole: 'News reporter',
+  },
+];
+
+function Section({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="neo-card p-3 space-y-2">
+      <div className="flex items-center gap-1.5">
+        <Icon icon={icon} width={14} height={14} className="text-primary" />
+        <h3 className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+          {title}
+        </h3>
+      </div>
+      <div className="space-y-1.5">{children}</div>
+    </section>
+  );
+}
 
 export default function TalkingVideoPanel() {
   const { t } = useTranslation();
@@ -19,9 +79,25 @@ export default function TalkingVideoPanel() {
     scenes,
   } = talkingVideo;
 
+  // 처음 한 장만 펼치고 나머지는 접음. 새 Scene을 추가하면 그 Scene이 자동으로 펼쳐짐.
+  const [expandedSceneId, setExpandedSceneId] = useState<string | null>(
+    scenes[0]?.id ?? null
+  );
+
   if (mode !== 'talking-video') return null;
 
   const isInterview = videoType === 'interview';
+
+  const applyPreset = (p: Preset) => {
+    setTalkingVideo({
+      characterName: p.characterName,
+      clothing: p.clothing,
+      setting: p.setting,
+      cameraAngle: p.cameraAngle,
+      expression: p.expression,
+      interviewerRole: p.interviewerRole,
+    });
+  };
 
   const generateImagePrompt = () => {
     const name = characterName || 'character';
@@ -78,11 +154,17 @@ export default function TalkingVideoPanel() {
   };
 
   const addScene = () => {
-    setTalkingVideoScenes([...scenes, { id: Date.now().toString(), interviewerLine: '', characterLine: '' }]);
+    const id = Date.now().toString();
+    setTalkingVideoScenes([...scenes, { id, interviewerLine: '', characterLine: '' }]);
+    setExpandedSceneId(id); // 새로 추가한 씬 자동 펼치기
   };
 
   const removeScene = (id: string) => {
-    if (scenes.length > 1) setTalkingVideoScenes(scenes.filter((sc) => sc.id !== id));
+    if (scenes.length > 1) {
+      const next = scenes.filter((sc) => sc.id !== id);
+      setTalkingVideoScenes(next);
+      if (expandedSceneId === id) setExpandedSceneId(next[0]?.id ?? null);
+    }
   };
 
   const updateScene = (
@@ -95,7 +177,7 @@ export default function TalkingVideoPanel() {
 
   return (
     <div className="px-4 py-3 space-y-3">
-      {/* Video Type Toggle */}
+      {/* ── Video Type Toggle ── */}
       <div className="flex gap-2">
         {(['interview', 'monologue'] as const).map((type) => (
           <button
@@ -113,29 +195,54 @@ export default function TalkingVideoPanel() {
         ))}
       </div>
 
-      {/* Generate Buttons — 인터뷰/말하는영상 토글 바로 아래 배치 */}
-      <div className="flex gap-2">
-        <button
-          onClick={generateImagePrompt}
-          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-secondary/10 text-secondary border border-secondary/30"
-        >
-          <Icon icon="solar:gallery-bold" width={14} height={14} />
-          {t('talkingVideo.genImage')}
-        </button>
-        <button
-          onClick={generateVideoPrompts}
-          className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-primary/10 text-primary border border-primary/30"
-        >
-          <Icon icon="solar:videocamera-record-bold" width={14} height={14} />
-          {t('talkingVideo.genVideo')}
-        </button>
+      {/* ── Generate Buttons (mode-switch warning included) ── */}
+      <div className="space-y-1">
+        <div className="flex gap-2">
+          <button
+            onClick={generateImagePrompt}
+            className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-secondary/10 text-secondary border border-secondary/30"
+            title={t('talkingVideo.genImageHint')}
+          >
+            <Icon icon="solar:gallery-bold" width={14} height={14} />
+            {t('talkingVideo.genImage')}
+            <Icon icon="solar:arrow-right-bold" width={10} height={10} className="opacity-60" />
+          </button>
+          <button
+            onClick={generateVideoPrompts}
+            className="flex-1 neo-btn py-2 text-[11px] gap-1.5 bg-primary/10 text-primary border border-primary/30"
+            title={t('talkingVideo.genVideoHint')}
+          >
+            <Icon icon="solar:videocamera-record-bold" width={14} height={14} />
+            {t('talkingVideo.genVideo')}
+            <Icon icon="solar:arrow-right-bold" width={10} height={10} className="opacity-60" />
+          </button>
+        </div>
+        <p className="text-[9px] text-muted-foreground text-center leading-tight">
+          {t('talkingVideo.genHint')}
+        </p>
       </div>
 
-      {/* Character Info */}
-      <div className="space-y-1.5">
+      {/* ── Preset Chips ── */}
+      <div className="space-y-1">
         <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
-          {t('talkingVideo.characterInfo')}
+          {t('talkingVideo.presets')}
         </label>
+        <div className="flex gap-1.5 flex-wrap">
+          {PRESETS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => applyPreset(p)}
+              className="neo-btn px-2 py-1 text-[10px] gap-1 bg-white text-foreground border border-border hover:bg-muted"
+            >
+              <Icon icon="solar:magic-stick-3-bold" width={11} height={11} className="text-primary" />
+              {t(`talkingVideo.preset.${p.key}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Section: Character ── */}
+      <Section title={t('talkingVideo.section.character')} icon="solar:user-bold">
         <input
           type="text"
           placeholder={t('talkingVideo.characterPlaceholder')}
@@ -150,6 +257,10 @@ export default function TalkingVideoPanel() {
           onChange={(e) => setTalkingVideo({ clothing: e.target.value })}
           className="memphis-input !py-1.5 text-xs"
         />
+      </Section>
+
+      {/* ── Section: Scene ── */}
+      <Section title={t('talkingVideo.section.scene')} icon="solar:gallery-wide-bold">
         <input
           type="text"
           placeholder={t('talkingVideo.settingPlaceholder')}
@@ -157,6 +268,17 @@ export default function TalkingVideoPanel() {
           onChange={(e) => setTalkingVideo({ setting: e.target.value })}
           className="memphis-input !py-1.5 text-xs"
         />
+        <input
+          type="text"
+          placeholder={t('talkingVideo.expressionPlaceholder')}
+          value={expression}
+          onChange={(e) => setTalkingVideo({ expression: e.target.value })}
+          className="memphis-input !py-1.5 text-xs"
+        />
+      </Section>
+
+      {/* ── Section: Camera & Language ── */}
+      <Section title={t('talkingVideo.section.camera')} icon="solar:camera-bold">
         <div className="flex gap-2">
           <select
             value={cameraAngle}
@@ -179,14 +301,11 @@ export default function TalkingVideoPanel() {
             <option value="Chinese">中文</option>
           </select>
         </div>
-        <input
-          type="text"
-          placeholder={t('talkingVideo.expressionPlaceholder')}
-          value={expression}
-          onChange={(e) => setTalkingVideo({ expression: e.target.value })}
-          className="memphis-input !py-1.5 text-xs"
-        />
-        {isInterview && (
+      </Section>
+
+      {/* ── Section: Interviewer (interview mode only) ── */}
+      {isInterview && (
+        <Section title={t('talkingVideo.section.interviewer')} icon="solar:microphone-3-bold">
           <input
             type="text"
             placeholder={t('talkingVideo.interviewerPlaceholder')}
@@ -194,10 +313,10 @@ export default function TalkingVideoPanel() {
             onChange={(e) => setTalkingVideo({ interviewerRole: e.target.value })}
             className="memphis-input !py-1.5 text-xs"
           />
-        )}
-      </div>
+        </Section>
+      )}
 
-      {/* Scenes */}
+      {/* ── Scenes (accordion) ── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -212,44 +331,95 @@ export default function TalkingVideoPanel() {
           </button>
         </div>
 
-        {scenes.map((scene, idx) => (
-          <div
-            key={scene.id}
-            className="border border-border rounded-xl p-2 space-y-1.5 bg-white shadow-sm"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-muted-foreground">
-                {t('talkingVideo.scene')} {idx + 1}
-              </span>
-              {scenes.length > 1 && (
-                <button
-                  onClick={() => removeScene(scene.id)}
-                  className="text-danger hover:opacity-70 transition-opacity"
-                >
-                  <Icon icon="solar:trash-bin-minimalistic-bold" width={12} height={12} />
-                </button>
+        {scenes.map((scene, idx) => {
+          const expanded = expandedSceneId === scene.id;
+          const filled =
+            scene.characterLine.trim().length > 0 ||
+            (isInterview && scene.interviewerLine.trim().length > 0);
+          return (
+            <div
+              key={scene.id}
+              className="border border-border rounded-xl bg-white shadow-sm overflow-hidden"
+            >
+              {/* Scene header (always visible, click to toggle) */}
+              <button
+                onClick={() => setExpandedSceneId(expanded ? null : scene.id)}
+                className="w-full flex items-center justify-between px-2.5 py-2 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Icon
+                    icon="solar:alt-arrow-down-bold"
+                    width={12}
+                    height={12}
+                    className={cn(
+                      'transition-transform duration-200 text-muted-foreground',
+                      expanded ? 'rotate-0' : '-rotate-90'
+                    )}
+                  />
+                  <span className="text-[10px] font-semibold text-foreground">
+                    {t('talkingVideo.scene')} {idx + 1}
+                  </span>
+                  {filled && (
+                    <Icon
+                      icon="solar:check-circle-bold"
+                      width={12}
+                      height={12}
+                      className="text-green-500"
+                    />
+                  )}
+                  {!expanded && scene.characterLine && (
+                    <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">
+                      {scene.characterLine}
+                    </span>
+                  )}
+                </div>
+                {scenes.length > 1 && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeScene(scene.id);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        removeScene(scene.id);
+                      }
+                    }}
+                    className="text-danger hover:opacity-70 transition-opacity cursor-pointer"
+                  >
+                    <Icon icon="solar:trash-bin-minimalistic-bold" width={12} height={12} />
+                  </span>
+                )}
+              </button>
+
+              {/* Scene body (expanded) */}
+              {expanded && (
+                <div className="px-2.5 pb-2 space-y-1.5">
+                  {isInterview && (
+                    <input
+                      type="text"
+                      placeholder={t('talkingVideo.interviewerLine')}
+                      value={scene.interviewerLine}
+                      onChange={(e) => updateScene(scene.id, 'interviewerLine', e.target.value)}
+                      className="memphis-input !py-1 text-[11px]"
+                    />
+                  )}
+                  <input
+                    type="text"
+                    placeholder={t('talkingVideo.characterLine')}
+                    value={scene.characterLine}
+                    onChange={(e) => updateScene(scene.id, 'characterLine', e.target.value)}
+                    className="memphis-input !py-1 text-[11px]"
+                  />
+                </div>
               )}
             </div>
-            {isInterview && (
-              <input
-                type="text"
-                placeholder={t('talkingVideo.interviewerLine')}
-                value={scene.interviewerLine}
-                onChange={(e) => updateScene(scene.id, 'interviewerLine', e.target.value)}
-                className="memphis-input !py-1 text-[11px]"
-              />
-            )}
-            <input
-              type="text"
-              placeholder={t('talkingVideo.characterLine')}
-              value={scene.characterLine}
-              onChange={(e) => updateScene(scene.id, 'characterLine', e.target.value)}
-              className="memphis-input !py-1 text-[11px]"
-            />
-          </div>
-        ))}
+          );
+        })}
       </div>
-
     </div>
   );
 }

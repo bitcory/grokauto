@@ -32,6 +32,7 @@ export type ImageDownloadQuality = 'none' | '1k';
 export type ImageFrameMode = 'start-only' | 'start-end';
 export type ImageRefMode = 'all' | 'single' | 'select';
 export type ImageGenerationSpeed = 'speed' | 'quality';
+export type ImageDownloadCount = 'first' | 'all';
 
 export interface PromptItem {
   id: string;
@@ -62,7 +63,7 @@ export interface VideoSettings {
   resolution: '480p' | '720p';
 }
 
-export type TabType = 'control' | 'settings';
+export type TabType = 'control' | 'settings' | 'logs';
 
 export type TalkingVideoType = 'interview' | 'monologue';
 

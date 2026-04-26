@@ -1,14 +1,15 @@
 {
   "header": {
     "title": "Grok 자동화",
-    "version": "V1.9.1",
+    "version": "V2.0.2",
     "description": "Grok AI 자동화 도구",
     "resetTooltip": "초기화",
     "resetDone": "초기화 완료"
   },
   "tabs": {
     "control": "컨트롤",
-    "settings": "설정"
+    "settings": "설정",
+    "logs": "로그"
   },
   "mode": {
     "label": "생성 모드",
@@ -21,7 +22,23 @@
     "talking-video": "말하는영상",
     "cinematic-intro": "시네마틱인트로",
     "resizeRatio": "변환 비율",
-    "aspectRatio": "화면 비율"
+    "aspectRatio": "화면 비율",
+    "duration": "영상 길이",
+    "group": {
+      "image": "이미지",
+      "video": "영상",
+      "advanced": "고급"
+    },
+    "hint": {
+      "text-to-image": "프롬프트만으로 이미지 생성. 품질 모드는 4장, 속도 모드는 다량.",
+      "image-to-image": "레퍼런스 이미지를 변형해 새 이미지 2장 생성.",
+      "resize": "이미지 비율만 변경 (배경을 자연스럽게 확장).",
+      "text-to-video": "프롬프트만으로 영상 생성.",
+      "frame-to-video": "이미지 1장(또는 시작+끝 2장)을 영상의 첫 프레임으로 사용.",
+      "remix-video": "기존 영상을 프롬프트로 변형.",
+      "talking-video": "캐릭터/배경/대사를 입력 → 영상·이미지 프롬프트 자동 생성 후 모드 전환.",
+      "cinematic-intro": "JSON 붙여넣기로 다중 씬 인트로 일괄 생성."
+    }
   },
   "talkingVideo": {
     "type": {
@@ -45,8 +62,23 @@
     "scene": "장면",
     "interviewerLine": "인터뷰어 대사 (선택)",
     "characterLine": "캐릭터 대사 *",
-    "genImage": "이미지 프롬프트 생성",
-    "genVideo": "영상 프롬프트 생성"
+    "genImage": "이미지 프롬프트",
+    "genVideo": "영상 프롬프트",
+    "genImageHint": "프롬프트 생성 후 텍스트→이미지 모드로 자동 전환",
+    "genVideoHint": "프롬프트 생성 후 이미지→비디오 모드로 자동 전환",
+    "genHint": "버튼 클릭 시 다른 모드로 자동 전환됩니다 (모드 선택기 옆 ← 뒤로가기로 복귀)",
+    "presets": "빠른 시작 프리셋",
+    "preset": {
+      "babyKorean": "한국 아기",
+      "kpopTrainee": "K-pop 연습생",
+      "officeWorker": "직장인"
+    },
+    "section": {
+      "character": "캐릭터",
+      "scene": "장면 / 표정",
+      "camera": "촬영 / 언어",
+      "interviewer": "인터뷰어"
+    }
   },
   "cinematicIntro": {
     "jsonPlaceholder": "시네마틱 인트로 JSON을 붙여넣으세요...",
@@ -87,7 +119,23 @@
     "startOnly": "각 프롬프트에 시작 프레임만 사용",
     "startEnd": "각 프롬프트에 시작 프레임과 종료 프레임 사용",
     "startLabel": "시작",
-    "endLabel": "종료"
+    "endLabel": "종료",
+    "uploadLabel": {
+      "frameStart": "시작 프레임 이미지",
+      "frameStartEnd": "시작 + 종료 프레임 이미지 (2장씩)",
+      "i2i": "레퍼런스 이미지",
+      "remix": "리믹스 대상 이미지",
+      "resize": "비율 변경 대상 이미지",
+      "cinematic": "공용 레퍼런스 이미지 (선택)"
+    },
+    "uploadHint": {
+      "frameStart": "영상의 첫 프레임이 될 이미지를 드래그하거나 클릭해서 업로드",
+      "frameStartEnd": "프롬프트당 시작/종료 2장 필요 (이미지 이름 끝 숫자 순서대로 자동 정렬)",
+      "i2i": "변형의 기준이 될 레퍼런스 이미지를 업로드",
+      "remix": "리믹스할 원본 영상/이미지를 업로드",
+      "resize": "비율을 바꿀 이미지를 업로드",
+      "cinematic": "모든 씬에 공용으로 쓸 레퍼런스 이미지 (선택사항)"
+    }
   },
   "output": {
     "label": "출력 설정",
@@ -125,6 +173,11 @@
     "stoppingDesc": "진행 중인 비디오/이미지 생성이 끝나면 자동으로 멈춥니다"
   },
   "settings": {
+    "group": {
+      "essentials": "필수 설정",
+      "advanced": "고급 설정",
+      "environment": "환경 설정"
+    },
     "defaultMode": {
       "label": "기본 모드",
       "desc": "새 비디오를 만들 때 기본 모드."
@@ -167,6 +220,12 @@
       "desc": "Speed는 빠르지만 품질이 낮고, Quality는 느리지만 고품질",
       "speed": "Speed (빠름)",
       "quality": "Quality (고품질)"
+    },
+    "imageDownloadCount": {
+      "label": "이미지 다운로드 개수",
+      "desc": "품질 모드는 프롬프트당 4장(t2i) / 2장(i2i)을 만듭니다. 첫 장만 저장할지 전부 _1/_2/... 접미사로 저장할지 선택",
+      "first": "첫 장만",
+      "all": "전체"
     },
     "language": {
       "label": "언어",

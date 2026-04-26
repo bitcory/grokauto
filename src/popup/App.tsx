@@ -12,6 +12,7 @@ import PromptList from './components/PromptList';
 import PromptQueue from './components/PromptQueue';
 import ActionButtons from './components/ActionButtons';
 import SettingsPanel from './components/SettingsPanel';
+import LogsPanel from './components/LogsPanel';
 import NotGrokPage from './components/NotGrokPage';
 import TalkingVideoPanel from './components/TalkingVideoPanel';
 import CinematicIntroPanel from './components/CinematicIntroPanel';
@@ -33,9 +34,26 @@ export default function App() {
   const [isGrokTab, setIsGrokTab] = useState<boolean | null>(null);
 
   useEffect(() => {
-    loadFromStorage().then(() => {
+    loadFromStorage().then(async () => {
       const lang = useAppStore.getState().language;
       i18n.changeLanguage(lang);
+
+      // 팝업이 "실행 중" 상태로 복구됐다면 콘텐츠 스크립트에 실제 상태 확인.
+      // (중지 중 응답이 끊기거나, 새로고침으로 컨텐츠 스크립트가 재시작된 경우 UI 해제용)
+      if (useAppStore.getState().isRunning) {
+        try {
+          const tabs = await chrome.tabs.query({ url: ['*://grok.com/*'] });
+          const tabId = tabs[0]?.id;
+          if (tabId == null) {
+            setIsRunning(false);
+            return;
+          }
+          const resp = await chrome.tabs.sendMessage(tabId, { type: 'GET_AUTOMATION_STATUS' });
+          if (!resp?.isRunning) setIsRunning(false);
+        } catch {
+          setIsRunning(false);
+        }
+      }
     });
   }, []);
 
@@ -107,9 +125,13 @@ export default function App() {
                 <OutputSettings />
                 <PromptQueue />
               </div>
-            ) : (
+            ) : activeTab === 'settings' ? (
               <div className="container-900 px-3 pb-3">
                 <SettingsPanel />
+              </div>
+            ) : (
+              <div className="container-900 px-3 pb-3">
+                <LogsPanel />
               </div>
             )}
           </div>

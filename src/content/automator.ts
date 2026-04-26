@@ -1,4 +1,4 @@
-import type { GenerationMode, PromptItem, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageFrameMode, ImageGenerationSpeed, ResizeRatio } from '../types';
+import type { GenerationMode, PromptItem, VideoSettings, VideoDownloadQuality, ImageDownloadQuality, ImageFrameMode, ImageGenerationSpeed, ImageDownloadCount, ResizeRatio } from '../types';
 import { typePrompt, submitWithEnter, clickSend, clearPrompt } from './dom/promptInput';
 import { uploadImages } from './dom/imageUpload';
 import { typeStartEndFramePrompt } from './dom/imageMention';
@@ -7,9 +7,19 @@ import { setAspectRatio } from './dom/aspectRatio';
 import { setImageGenerationSpeed } from './dom/imageSpeed';
 import { setVideoDuration, setVideoResolution, clickVideoUpscale, waitForUpscaleComplete, clickVideoDownload } from './dom/videoSettings';
 import { navigateToImagine, startNewImagineSession } from './dom/navigate';
-import { waitForGenerationComplete, waitForTextToImageResult, dismissFeedbackScreen, waitForImageFullyLoaded, waitForVideoProgressGone, waitForCloudflareChallenge, readVideoProgress } from './dom/waiters';
+import {
+  waitForGenerationComplete,
+  waitForTextToImageResult,
+  waitForVideoComplete,
+  waitForImageToImageComplete,
+  snapshotTextToImageBaseline,
+  dismissFeedbackScreen,
+  waitForImageFullyLoaded,
+  waitForCloudflareChallenge,
+} from './dom/waiters';
 import { clickDownloadButton, getFirstGeneratedImageUrl } from './dom/resultCapture';
 import { randomDelay, delay } from './utils/delay';
+import { markStopRequested, clearStopRequest } from './stopSignal';
 
 interface AutomationConfig {
   mode: GenerationMode;
@@ -26,22 +36,33 @@ interface AutomationConfig {
   imageDownloadQuality: ImageDownloadQuality;
   imageFrameMode: ImageFrameMode;
   imageGenerationSpeed: ImageGenerationSpeed;
+  imageDownloadCount: ImageDownloadCount;
   resizeTargetRatio?: ResizeRatio;
 }
 
 let isRunning = false;
+
+export function isAutomationRunning(): boolean {
+  return isRunning;
+}
 
 /**
  * Stop the current automation
  */
 export function stopAutomation(): void {
   isRunning = false;
+  markStopRequested();
 }
 
 /**
  * Run the batch automation
  */
 export async function runAutomation(config: AutomationConfig): Promise<void> {
+  if (isRunning) {
+    console.warn('[GrokAuto] runAutomation: already running, ignoring start');
+    return;
+  }
+  clearStopRequest();
   isRunning = true;
 
   const {
@@ -57,6 +78,7 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
     imageDownloadQuality,
     imageFrameMode,
     imageGenerationSpeed,
+    imageDownloadCount,
     resizeTargetRatio,
   } = config;
 
@@ -121,8 +143,13 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
 
     const batch = prompts.slice(i, i + concurrentPrompts);
 
-    for (const prompt of batch) {
+    for (let j = 0; j < batch.length; j++) {
       if (!isRunning) break;
+      const prompt = batch[j];
+      // 1-based position within the whole `prompts` array. Used to prefix
+      // saved filenames so failed prompts leave a gap in the numbering
+      // (matching the UI list position rather than a success-only counter).
+      const promptIndex = i + j + 1;
 
       // Retry loop
       let succeeded = false;
@@ -188,6 +215,12 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
             throw new Error('Failed to type prompt');
           }
 
+          // t2i: capture baseline BEFORE submit so we can distinguish NEW
+          // generated images from any stale ones from the previous session.
+          const t2iBaseline = mode === 'text-to-image'
+            ? snapshotTextToImageBaseline()
+            : undefined;
+
           await delay(5000);
           await submitWithEnter();
           await delay(2000);
@@ -204,7 +237,6 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
             await delay(1000);
           }
 
-          // 영상 모드: 제출 직후부터 진행률 폴링 시작
           const sendPhase = (phase: 'generated' | 'upscaling' | 'downloading') => {
             chrome.runtime.sendMessage({
               type: 'PROMPT_PROGRESS_UPDATE',
@@ -212,48 +244,50 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
             });
           };
 
-          let progressPoller: ReturnType<typeof setInterval> | null = null;
-          if (isVideo) {
-            let lastPct = -1;
-            progressPoller = setInterval(() => {
-              const pct = readVideoProgress();
-              if (pct !== null && pct !== lastPct) {
-                lastPct = pct;
-                chrome.runtime.sendMessage({
-                  type: 'PROMPT_PROGRESS_UPDATE',
-                  payload: { promptId: prompt.id, progress: pct },
-                });
-              }
-            }, 500);
-          }
+          // Wait for generation to complete — use the right detector for the mode.
+          // Timeout/content-hidden are handled with SKIP policy (no retry): the
+          // user wants the batch to move on to the next prompt instead of
+          // burning attempts on a stuck generation.
+          const genTimeout = isVideo ? 240000 : 120000;
+          let genStatus: 'completed' | 'timeout' | 'content-hidden' = 'timeout';
+          let textToImageUrls: string[] | undefined;
+          let imageToImageUrls: string[] | undefined;
 
-          // Wait for generation to complete
-          // text-to-image는 base64 data URL이라 별도의 fast-path 감지를 사용 (안정화 대기 없음)
-          const genTimeout = isVideo ? 180000 : 120000;
-          let genResult: 'completed' | 'timeout' | 'content-hidden';
-          let textToImageDataUrl: string | undefined;
           if (mode === 'text-to-image') {
-            const t2iResult = await waitForTextToImageResult(genTimeout);
-            genResult = t2iResult.status;
-            textToImageDataUrl = t2iResult.imageUrl;
+            // Quality mode → expect 4 images. Speed mode → any (first match).
+            const expected = imageGenerationSpeed === 'quality' ? 4 : undefined;
+            const t2iResult = await waitForTextToImageResult(genTimeout, t2iBaseline, expected);
+            genStatus = t2iResult.status;
+            textToImageUrls = t2iResult.imageUrls;
+          } else if (mode === 'image-to-image') {
+            const i2iResult = await waitForImageToImageComplete(genTimeout);
+            genStatus = i2iResult.status;
+            imageToImageUrls = i2iResult.urls;
+          } else if (isVideo) {
+            genStatus = await waitForVideoComplete(genTimeout);
           } else {
-            genResult = await waitForGenerationComplete(genTimeout, isVideo);
-          }
-
-          if (progressPoller) {
-            clearInterval(progressPoller);
-            progressPoller = null;
+            genStatus = await waitForGenerationComplete(genTimeout, isVideo);
           }
 
           // Check for Cloudflare challenge during generation
           await waitForCloudflareChallenge();
 
-          if (genResult === 'timeout') {
-            throw new Error('Generation timed out');
+          // SKIP on timeout: mark as failed and move on (no retry)
+          if (genStatus === 'timeout') {
+            console.log('[GrokAuto] Generation timed out — skipping this prompt');
+            chrome.runtime.sendMessage({
+              type: 'PROMPT_STATUS_UPDATE',
+              payload: { promptId: prompt.id, status: 'failed', error: 'Generation timed out' },
+            });
+            clearPrompt();
+            if (imageDataUrls && imageDataUrls.length > 0) {
+              await chrome.storage.local.remove(imgKey);
+            }
+            break; // exit retry loop → next prompt
           }
 
           // 모더레이션으로 결과가 숨김 처리된 경우: 재시도 없이 실패로 마크하고 다음 프롬프트로 진행
-          if (genResult === 'content-hidden') {
+          if (genStatus === 'content-hidden') {
             console.log('[GrokAuto] Content blocked by moderation — marking as failed and moving on');
             chrome.runtime.sendMessage({
               type: 'PROMPT_STATUS_UPDATE',
@@ -276,11 +310,10 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
           // Wait for media to be fully loaded before downloading
           if (isVideo) {
             sendPhase('generated');
-            await waitForVideoProgressGone(180000);
-            await delay(500);
-          } else if (mode === 'text-to-image') {
-            // text-to-image는 waitForTextToImageResult에서 이미 src 존재까지 확인 완료.
-            // data URL은 즉시 사용 가능하므로 추가 대기 불필요.
+            // waitForVideoComplete already verified readyState >= 2 and settled.
+          } else if (mode === 'text-to-image' || mode === 'image-to-image') {
+            // waitForTextToImageResult / waitForImageToImageComplete already
+            // verified all N images are loaded and stable.
           } else {
             await waitForImageFullyLoaded(30000);
             await delay(1000);
@@ -288,7 +321,18 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
 
           dismissFeedbackScreen(); // check again after media load
 
-          // Download based on quality settings (with retry)
+          // Helper: request the background to save a URL to disk with optional
+          // _N suffix in the filename. Always stamps the prompt's batch
+          // position so filenames match the UI list (failed prompts leave
+          // gaps in the numbering).
+          const saveUrl = (url: string, indexSuffix?: number) => {
+            return chrome.runtime.sendMessage({
+              type: 'DOWNLOAD_RESULT',
+              payload: { url, folder: saveFolder, indexSuffix, promptIndex },
+            });
+          };
+
+          // Download based on quality settings
           if (isVideo) {
             if (videoDownloadQuality !== 'none') {
               if (videoDownloadQuality === '480p-upscale') {
@@ -303,32 +347,49 @@ export async function runAutomation(config: AutomationConfig): Promise<void> {
               // Set download folder right before download click
               await chrome.runtime.sendMessage({
                 type: 'SET_DOWNLOAD_FOLDER',
-                payload: { folder: saveFolder },
+                payload: { folder: saveFolder, promptIndex },
               });
               await clickVideoDownload();
             }
           } else if (mode === 'text-to-image') {
-            // text-to-image: waitForTextToImageResult가 이미 검증한 새 이미지 URL을 그대로 사용.
-            // (DOM에서 다시 잡으려 하면 이전 세션의 잔존 이미지를 잘못 잡을 위험이 있음)
             if (imageDownloadQuality !== 'none') {
-              const imgUrl = textToImageDataUrl ?? getFirstGeneratedImageUrl();
-              if (imgUrl) {
-                console.log(`[GrokAuto] text-to-image: downloading ${imgUrl.slice(0, 80)}...`);
-                await chrome.runtime.sendMessage({
-                  type: 'DOWNLOAD_RESULT',
-                  payload: { url: imgUrl, folder: saveFolder },
-                });
+              const urls = textToImageUrls && textToImageUrls.length > 0
+                ? textToImageUrls
+                : (getFirstGeneratedImageUrl() ? [getFirstGeneratedImageUrl()!] : []);
+              if (urls.length === 0) {
+                console.warn('[GrokAuto] text-to-image: no result image URL found');
+              } else if (imageDownloadCount === 'all' && urls.length > 1) {
+                console.log(`[GrokAuto] t2i: downloading ${urls.length} images with _N suffix`);
+                for (let k = 0; k < urls.length; k++) {
+                  await saveUrl(urls[k], k + 1);
+                }
               } else {
-                console.warn('[GrokAuto] text-to-image: first image URL not found, skipping download');
+                console.log(`[GrokAuto] t2i: downloading first of ${urls.length} image(s)`);
+                await saveUrl(urls[0]);
+              }
+            }
+          } else if (mode === 'image-to-image') {
+            if (imageDownloadQuality !== 'none') {
+              const urls = imageToImageUrls ?? [];
+              if (urls.length === 0) {
+                console.warn('[GrokAuto] i2i: no generated image URLs found in result');
+              } else if (imageDownloadCount === 'all' && urls.length > 1) {
+                console.log(`[GrokAuto] i2i: downloading ${urls.length} images with _N suffix`);
+                for (let k = 0; k < urls.length; k++) {
+                  await saveUrl(urls[k], k + 1);
+                }
+              } else {
+                console.log(`[GrokAuto] i2i: downloading first of ${urls.length} image(s)`);
+                await saveUrl(urls[0]);
               }
             }
           } else {
-            // image-to-image, resize 등 다른 이미지 모드는 기존 로직 유지
+            // resize 등 다른 이미지 모드는 기존 로직 유지
             if (imageDownloadQuality !== 'none') {
               // Set download folder right before download click
               await chrome.runtime.sendMessage({
                 type: 'SET_DOWNLOAD_FOLDER',
-                payload: { folder: saveFolder },
+                payload: { folder: saveFolder, promptIndex },
               });
               // Retry download button click up to 3 times
               let downloadClicked = false;
